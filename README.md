@@ -13,6 +13,12 @@ Pick seasonal meals by swiping, then get a week of lunches and dinners, the left
 
 Alone, everything stays on the phone (`localStorage`). Shared, a Cloudflare Durable Object per household keeps the state and relays changes. The site is installable as an app and works offline once loaded.
 
+## AI agents (WebMCP)
+
+Crumble registers tools with [WebMCP](https://webmachinelearning.github.io/webmcp/), so an AI agent working in the browser can use the open app: read the plan, shopping list, recipes and household settings; like or pass dishes, draw a plan, change, move or lock meals, tick shopping items, set who eats when, habits, diet and ingredients to avoid, and add the household's own dishes. Each change shows a « 🤖 … » message, and in a shared household it syncs like any other change.
+
+The tools are in `src/webmcp/tools.ts` and act through the same actions as the app's buttons; `src/webmcp/register.ts` registers them on `document.modelContext` (or the older `navigator.modelContext`) and does nothing in browsers without WebMCP.
+
 ## Develop
 
 ```sh
