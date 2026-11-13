@@ -12,7 +12,7 @@ export const NO_DIET: Diet = { vegetarian: false, noPork: false, noFish: false }
 const PORK = /lard|jambon|saucisse|porc|bacon|chorizo|poitrine|petit salé|charcuterie/i;
 const FISH =
   /poisson|cabillaud|saumon|\bthon\b|moule|saint-jacques|maquereau|colin|crevette|sardine|truite|merlu|anchois/i;
-const OTHER_MEAT = /poulet|b(œ|oe)uf|veau|agneau|dinde|canard|steak|viande|lapin|merguez/i;
+const OTHER_MEAT = /poulet|b(œ|oe)uf|veau|agneau|dinde|canard|steak|viande|lapin|merguez|bavette|entrec(ô|o)te|onglet|rumsteck/i;
 
 const has = (meal: Meal, pattern: RegExp) => meal.ingredients.some(([name]) => pattern.test(name));
 

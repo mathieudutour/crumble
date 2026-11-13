@@ -76,6 +76,9 @@ describe("diet", () => {
     expect(hasFish(meal("nicoise"))).toBe(true);
     expect(isVegetarian(meal("risotto"))).toBe(true);
     expect(isVegetarian(meal("poulet"))).toBe(false);
+    expect(isVegetarian(meal("bavette"))).toBe(false);
+    expect(hasFish(meal("crevettes"))).toBe(true);
+    expect(isVegetarian(meal("crumblelegumes"))).toBe(true);
     expect(fitsDiet(meal("qlorraine"), { ...NO_DIET, noPork: true })).toBe(false);
     expect(fitsDiet(meal("curry"), { vegetarian: true, noPork: true, noFish: true })).toBe(true);
   });

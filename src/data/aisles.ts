@@ -11,6 +11,9 @@ export const AISLE_NAMES: Record<Aisle, string> = {
 export const AISLE_ORDER: readonly Aisle[] = ["produce", "meat", "dairy", "grocery"];
 
 const PRODUCE = [
+  "Tomates cerises",
+  "Avocats",
+  "Oignons rouges",
   "Carottes",
   "Panais",
   "Oignons",
@@ -53,6 +56,8 @@ const PRODUCE = [
   "Melon",
 ];
 const MEAT = [
+  "Crevettes décortiquées",
+  "Bavette",
   "Poulet fermier",
   "Jambon blanc",
   "Dos de cabillaud",
