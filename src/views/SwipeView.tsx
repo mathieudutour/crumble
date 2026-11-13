@@ -59,9 +59,6 @@ export function SwipeView({ onPlan }: { onPlan: () => void }) {
     need.lunches > have.lunches ? plural(need.lunches - have.lunches, "midi") : "",
   ].filter(Boolean);
 
-  // The gesture hint is for a first visit; habits already show in the plan.
-  const firstVisit = !state.liked.length && !state.noped.length;
-
   return (
     <>
       <Counts />
@@ -142,7 +139,6 @@ export function SwipeView({ onPlan }: { onPlan: () => void }) {
           {ready ? "Créer mon planning ✨" : `Encore ${missing.join(" et ")} à choisir`}
         </button>
       )}
-      {firstVisit && <p className="hint">Glisse à droite pour garder, à gauche pour passer. Touche la carte pour la recette.</p>}
     </>
   );
 }
