@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { renderSVG } from "uqr";
+import { sceneImage } from "../data/images";
 import { useStore } from "../store/StoreProvider";
 import type { SyncStatus } from "../store/store";
 import { InstallHint, useSuggestInstall } from "./InstallHint";
@@ -30,8 +31,10 @@ export function Sharing() {
   );
 
   if (status.mode === "solo") {
+    const art = sceneImage("household");
     return (
       <>
+        {art && <img className="share-art" src={art} alt="" decoding="async" />}
         <p className="note spaced-bottom">
           Partage ton foyer : l’autre adulte voit le même planning, les mêmes plats et coche la même liste de courses,
           en direct. Pas de compte, un lien suffit.
@@ -124,6 +127,7 @@ export function JoinSheet({ joinKey, onDone }: { joinKey: string; onDone: (joine
     <Sheet onClose={() => onDone(false)} labelledBy="join-title">
       <div className="in">
         <SheetHeader id="join-title" title="Rejoindre un foyer" onClose={() => onDone(false)} />
+        {sceneImage("household") && <img className="share-art" src={sceneImage("household")} alt="" decoding="async" />}
         <p>Tu vas partager le planning, les plats et la liste de courses de ce foyer, en direct.</p>
         <p className="note spaced">
           {alreadyShared
