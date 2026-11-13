@@ -117,6 +117,18 @@ button:disabled {
   outline-offset: 2px;
 }
 
+/* A swiped card flies off the side of the screen. Clip it: iPhone Safari otherwise widens the whole page to fit it,
+   and keeps it wider. `clip` (unlike `hidden`) doesn't make a scroll container, so sticky banners still work. */
+#root {
+  overflow-x: clip;
+}
+
+@supports not (overflow: clip) {
+  #root {
+    overflow-x: hidden;
+  }
+}
+
 .app {
   max-width: 480px;
   margin: 0 auto;
