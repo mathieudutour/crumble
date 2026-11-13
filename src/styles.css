@@ -8,6 +8,9 @@
   --green: #4f7a4a;
   --nope: #b8483b;
   --soft: #f4ebe0;
+  /* System fonts: nothing to download. New York on Apple devices, the platform serif elsewhere. */
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: ui-serif, "New York", Georgia, "Noto Serif", serif;
   color-scheme: light;
 }
 
@@ -25,7 +28,7 @@ body {
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: "Inter Variable", system-ui, sans-serif;
+  font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
@@ -68,13 +71,13 @@ header {
 }
 
 h1 {
-  font-family: "Fraunces Variable", Georgia, serif;
+  font-family: var(--serif);
   font-size: 22px;
   letter-spacing: -0.01em;
 }
 
 h2 {
-  font-family: "Fraunces Variable", Georgia, serif;
+  font-family: var(--serif);
   font-size: 20px;
   margin: 4px 0 10px;
 }
@@ -222,7 +225,7 @@ h2 {
 }
 
 .card h3 {
-  font-family: "Fraunces Variable", Georgia, serif;
+  font-family: var(--serif);
   font-size: 23px;
   line-height: 1.15;
   margin-bottom: 10px;
@@ -265,7 +268,7 @@ h2 {
   font-size: 22px;
   letter-spacing: 0.05em;
   opacity: 0;
-  font-family: "Fraunces Variable", Georgia, serif;
+  font-family: var(--serif);
   background: rgba(255, 255, 255, 0.85);
 }
 
@@ -414,7 +417,7 @@ h2 {
 }
 
 .day h4 {
-  font-family: "Fraunces Variable", Georgia, serif;
+  font-family: var(--serif);
   font-size: 16px;
   margin-bottom: 6px;
 }
@@ -1054,7 +1057,7 @@ textarea.field {
 
 .today-badge {
   margin-left: 8px;
-  font-family: "Inter Variable", system-ui, sans-serif;
+  font-family: var(--sans);
   font-size: 11px;
   font-weight: 600;
   color: #fff;
@@ -1291,7 +1294,7 @@ textarea.field {
 }
 
 .cook-title {
-  font-family: "Fraunces Variable", Georgia, serif;
+  font-family: var(--serif);
   font-size: 17px;
   white-space: nowrap;
   overflow: hidden;

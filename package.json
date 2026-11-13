@@ -13,8 +13,6 @@
     "dishes": "tsx scripts/dishes.ts"
   },
   "dependencies": {
-    "@fontsource-variable/fraunces": "^5.3.0",
-    "@fontsource-variable/inter": "^5.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "uqr": "^0.1.3"
