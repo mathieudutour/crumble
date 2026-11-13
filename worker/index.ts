@@ -1,5 +1,7 @@
 // The Worker serves the static app (see `assets` in wrangler.jsonc) and the household API under /api.
 
+import { defaultWeek } from "../src/lib/week";
+
 export { Household } from "./household";
 
 /** 128 random bits, URL-safe. Whoever has the key is part of the household. */
@@ -26,7 +28,7 @@ export default {
       const key = newKey();
       const created = await env.HOUSEHOLD.get(env.HOUSEHOLD.idFromName(key)).create(
         body.household,
-        new Date().toISOString().slice(0, 10),
+        defaultWeek(),
       );
       if (!created) return json({ error: "conflict" }, 409);
       return json({ key, version: created.version }, 201);

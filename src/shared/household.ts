@@ -7,6 +7,7 @@ import type { Meal, Rating } from "../data/types";
 import { builtInMeal, makeCatalogue, type MealLookup } from "../lib/catalogue";
 import { avoidedIn } from "../lib/avoid";
 import { applyDiners, clearSlot, moveMeal, placeMeal } from "../lib/planEdit";
+import { fromIso, mondayOf } from "../lib/week";
 import {
   DEFAULT_HABITS,
   defaultDiners,
@@ -212,7 +213,8 @@ export function normalizeHousehold(value: unknown, fallbackWeek: string): Househ
     order: known(stored.order),
     liked: known(stored.liked),
     noped: known(stored.noped),
-    week: isWeek(stored.week) ? stored.week : fallbackWeek,
+    // Weeks always start on a Monday, whatever was stored.
+    week: mondayOf(fromIso(isWeek(stored.week) ? stored.week : fallbackWeek)),
     plans,
     diners:
       diners.every((d) => isObject(d) && Number.isInteger(d.adults) && Number.isInteger(d.kids)) && diners.length

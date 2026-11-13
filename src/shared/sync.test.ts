@@ -118,6 +118,7 @@ describe("sync", () => {
 describe("normalizeHousehold", () => {
   it("survives garbage and keeps what is valid", () => {
     expect(normalizeHousehold("nope", WEEK).week).toBe(WEEK);
+    expect(normalizeHousehold({ week: "2026-11-13" }, WEEK).week).toBe("2026-11-09"); // a Friday snaps to its Monday
     const state = normalizeHousehold(
       { liked: ["poulet", "not-a-meal", 3], diners: "x", settings: { weeknightMinutes: "x" } },
       WEEK,
