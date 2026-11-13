@@ -5,3 +5,5 @@ dev-dist
 *.log
 .wrangler
 .dev.vars
+# Dish illustration originals: large, kept out of the repo (see scripts/dishes.ts)
+dish-sources

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeCatalogue } from "./catalogue";
-import { canMove, clearSlot, moveMeal, placeMeal, toggleLock } from "./planEdit";
+import { applyDiners, canMove, clearSlot, moveMeal, placeMeal, toggleLock } from "./planEdit";
 import { defaultDiners, slotIndex, withPortions, type Plan, type PlanSlot } from "./planning";
 
 const catalogue = makeCatalogue();
@@ -76,5 +76,41 @@ describe("other edits", () => {
     const plan = clearSlot(week(), MON_DINNER, diners, catalogue.get);
     expect(plan[MON_DINNER]).toEqual(FREE);
     expect(plan[TUE_LUNCH]).toEqual(FREE);
+  });
+});
+
+describe("applyDiners", () => {
+  const noHabit = () => undefined;
+  const nobody = { adults: 0, kids: 0 };
+
+  it("scales a meal to the new number of diners", () => {
+    const more = defaultDiners();
+    more[TUE_DINNER] = { adults: 4, kids: 2 };
+    expect(applyDiners(week(), more, catalogue.get, noHabit)[TUE_DINNER]).toMatchObject({ mealId: "cabillaud", portions: 5, factor: 2 });
+  });
+
+  it("drops a meal nobody is home for, with its leftovers", () => {
+    const away = defaultDiners();
+    away[MON_DINNER] = nobody;
+    const plan = applyDiners(week(), away, catalogue.get, noHabit);
+    expect(plan[MON_DINNER]).toEqual({ kind: "none" });
+    expect(plan[TUE_LUNCH]).toEqual(FREE);
+  });
+
+  it("cooks less when nobody is home for the leftovers", () => {
+    const away = defaultDiners();
+    away[TUE_LUNCH] = nobody;
+    const plan = applyDiners(week(), away, catalogue.get, noHabit);
+    expect(plan[TUE_LUNCH]).toEqual({ kind: "none" });
+    expect(plan[MON_DINNER]).toMatchObject({ mealId: "poulet", portions: 2.5 });
+  });
+
+  it("frees a slot people are back for, or brings its habit back", () => {
+    const plan = week();
+    plan[WED_LUNCH] = { kind: "none" };
+    plan[THU_DINNER] = { kind: "none" };
+    const back = applyDiners(plan, defaultDiners(), catalogue.get, (slot) => (slot === THU_DINNER ? meal("pesto") : undefined));
+    expect(back[WED_LUNCH]).toEqual(FREE);
+    expect(back[THU_DINNER]).toMatchObject({ kind: "cook", mealId: "pesto", habit: true });
   });
 });

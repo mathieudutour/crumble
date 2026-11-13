@@ -25,7 +25,7 @@ body {
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
@@ -68,13 +68,13 @@ header {
 }
 
 h1 {
-  font-family: Fraunces, serif;
+  font-family: "Fraunces Variable", Georgia, serif;
   font-size: 22px;
   letter-spacing: -0.01em;
 }
 
 h2 {
-  font-family: Fraunces, serif;
+  font-family: "Fraunces Variable", Georgia, serif;
   font-size: 20px;
   margin: 4px 0 10px;
 }
@@ -194,12 +194,35 @@ h2 {
   position: relative;
 }
 
+.dish-art {
+  display: block;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.card .pic .dish-art {
+  position: absolute;
+  inset: 6%;
+  height: 88%;
+  width: 88%;
+  filter: drop-shadow(0 8px 14px rgba(60, 40, 20, 0.18));
+}
+
+.sheet .top .dish-art {
+  height: 180px;
+  margin: 0 auto;
+}
+
 .card .body {
   padding: 16px 18px 20px;
 }
 
 .card h3 {
-  font-family: Fraunces, serif;
+  font-family: "Fraunces Variable", Georgia, serif;
   font-size: 23px;
   line-height: 1.15;
   margin-bottom: 10px;
@@ -242,7 +265,7 @@ h2 {
   font-size: 22px;
   letter-spacing: 0.05em;
   opacity: 0;
-  font-family: Fraunces, serif;
+  font-family: "Fraunces Variable", Georgia, serif;
   background: rgba(255, 255, 255, 0.85);
 }
 
@@ -391,7 +414,7 @@ h2 {
 }
 
 .day h4 {
-  font-family: Fraunces, serif;
+  font-family: "Fraunces Variable", Georgia, serif;
   font-size: 16px;
   margin-bottom: 6px;
 }
@@ -1031,7 +1054,7 @@ textarea.field {
 
 .today-badge {
   margin-left: 8px;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Inter Variable", system-ui, sans-serif;
   font-size: 11px;
   font-weight: 600;
   color: #fff;
@@ -1268,7 +1291,7 @@ textarea.field {
 }
 
 .cook-title {
-  font-family: Fraunces, serif;
+  font-family: "Fraunces Variable", Georgia, serif;
   font-size: 17px;
   white-space: nowrap;
   overflow: hidden;

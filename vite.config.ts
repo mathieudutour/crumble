@@ -31,12 +31,14 @@ export default defineConfig({
       workbox: {
         // The household API is always live, never served from the offline cache.
         navigateFallbackDenylist: [/^\/api\//],
+        // The app, plus the fonts' latin files: French needs nothing else, and the other alphabets load on demand.
+        globPatterns: ["**/*.{js,css,html}", "**/*-latin-{opsz,wght}-normal-*.woff2"],
+        // Dish illustrations are cached as they're seen rather than all at install (about 40 KB each).
         runtimeCaching: [
           {
-            urlPattern: ({ url }) =>
-              url.origin === "https://fonts.googleapis.com" || url.origin === "https://fonts.gstatic.com",
-            handler: "StaleWhileRevalidate",
-            options: { cacheName: "google-fonts", expiration: { maxEntries: 20 } },
+            urlPattern: ({ url }) => url.pathname.startsWith("/assets/") && url.pathname.endsWith(".webp"),
+            handler: "CacheFirst",
+            options: { cacheName: "dishes", expiration: { maxEntries: 200 } },
           },
         ],
       },

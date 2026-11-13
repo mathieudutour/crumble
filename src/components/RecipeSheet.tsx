@@ -3,6 +3,7 @@ import { recipeSteps } from "../lib/catalogue";
 import { decimal, formatQuantity, mealHue } from "../lib/format";
 import { baseServings, scaleQuantity, type CookSlot } from "../lib/planning";
 import { useStore } from "../store/StoreProvider";
+import { DishArt } from "./DishArt";
 import { MealForm } from "./MealForm";
 import { MealTags, mealGradient } from "./MealTags";
 import { Sheet } from "./Sheet";
@@ -33,7 +34,7 @@ export function RecipeSheet({ mealId, slot, onClose }: Props) {
   return (
     <Sheet onClose={onClose} labelledBy="recipe-title">
       <div className="top" style={{ background: mealGradient(mealHue(meal), 78) }}>
-        <span aria-hidden="true">{meal.emoji}</span>
+        <DishArt meal={meal} />
         <button className="x" onClick={onClose} aria-label="Fermer">
           ✕
         </button>

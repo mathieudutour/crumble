@@ -62,4 +62,5 @@ Shared state lives in `src/shared/`, which runs both on phones and in the Durabl
 - `src/store/`: the phone's store (alone or synced, `store.ts`), persistence and derived values. Plans are stored by week; past weeks are the history.
 - `worker/`: the Cloudflare Worker and the household Durable Object.
 - `src/views/`: one component per tab. The current tab is in the URL hash (`#planning`, `#courses`, `#foyer`…).
+- Dish illustrations: `npm run dishes -- prompts` writes one prompt per dish to `assets/dishes/prompts.md`, all in the app icon's style with a transparent background. Save each generated image as `dish-sources/<id>.png` (not committed), or generate them with `OPENAI_API_KEY=… npm run dishes -- generate`, then `npm run dishes -- import` makes the 640 px WebP files in `src/assets/dishes/` that ship with the app. `npm run dishes -- status` lists what's missing; dishes without a picture show their emoji.
 - `assets/`: 1024 px masters of the app icon (`icon-maskable-1024.png` has extra margin for Android's round crop). The sizes in `public/` are generated from them.

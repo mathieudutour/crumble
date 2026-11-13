@@ -62,7 +62,7 @@ export const planKey = (s: AppState, catalogue: Catalogue) =>
     likedMeals(s, catalogue)
       .map((m) => m.id)
       .sort(),
-    s.diners,
+    // Diners are left out: changing them adjusts the plan directly.
     s.settings,
   ]);
 

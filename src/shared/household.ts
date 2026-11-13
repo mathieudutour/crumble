@@ -2,10 +2,11 @@
 // Durable Object, so it must stay pure and deterministic: no randomness, no clock, no browser APIs. Anything random
 // (a shuffled deck, a drawn plan) is computed by the phone and carried in the action.
 
-import { NO_DIET, type Diet } from "../data/diet";
+import { fitsDiet, NO_DIET, type Diet } from "../data/diet";
 import type { Meal, Rating } from "../data/types";
 import { makeCatalogue, type MealLookup } from "../lib/catalogue";
-import { clearSlot, moveMeal, placeMeal } from "../lib/planEdit";
+import { avoidedIn } from "../lib/avoid";
+import { applyDiners, clearSlot, moveMeal, placeMeal } from "../lib/planEdit";
 import {
   DEFAULT_HABITS,
   defaultDiners,
@@ -255,6 +256,18 @@ function updatePlan(state: Household, week: string, update: (plan: WeekPlan) => 
   return plan ? { ...state, plans: { ...state.plans, [week]: update(plan) } } : state;
 }
 
+/** New diners, with the plan being made adjusted to them rather than left out of date. */
+function withDiners(state: Household, diners: Diners[]): Household {
+  const lookup = makeCatalogue(state.customMeals).get;
+  const habitFor = (slot: number) => {
+    const habit = state.settings.habits.find((h) => h.slot === slot);
+    const meal = habit && lookup(habit.mealId);
+    return meal && fitsDiet(meal, state.settings.diet) && !avoidedIn(meal, state.settings.avoid).length ? meal : undefined;
+  };
+  const next = { ...state, diners };
+  return updatePlan(next, state.week, (plan) => ({ ...plan, slots: applyDiners(plan.slots, diners, lookup, habitFor) }));
+}
+
 export function householdReducer(state: Household, action: HouseholdAction): Household {
   const lookup = () => makeCatalogue(state.customMeals).get;
   switch (action.type) {
@@ -333,13 +346,13 @@ export function householdReducer(state: Household, action: HouseholdAction): Hou
       )
         return state;
       const value = Math.max(0, Math.min(MAX_DINERS, Math.round(action.value)));
-      return {
-        ...state,
-        diners: state.diners.map((d, slot) => (slot === action.slot ? { ...d, [action.field]: value } : d)),
-      };
+      return withDiners(
+        state,
+        state.diners.map((d, slot) => (slot === action.slot ? { ...d, [action.field]: value } : d)),
+      );
     }
     case "resetDiners":
-      return { ...state, diners: defaultDiners() };
+      return withDiners(state, defaultDiners());
     case "setSettings":
       return {
         ...state,

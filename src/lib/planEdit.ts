@@ -1,6 +1,6 @@
 import type { Meal } from "../data/types";
 import type { MealLookup } from "./catalogue";
-import { fitsSlot, placeLeftovers, withPortions, type Diners, type Plan, type PlanSlot } from "./planning";
+import { fitsSlot, placeLeftovers, portionsOf, withPortions, type Diners, type Plan, type PlanSlot } from "./planning";
 
 // Hand edits to a plan. A meal the household places itself is locked, so a redraw keeps it.
 
@@ -72,5 +72,31 @@ export function moveMeal(plan: Plan, from: number, to: number, diners: readonly 
     const meal = entry?.kind === "cook" ? lookup(entry.mealId) : undefined;
     if (meal) placeLeftovers(slots, slot, meal, isFree);
   }
+  return withPortions(slots, diners, lookup);
+}
+
+/**
+ * Fits a plan to new diners: quantities follow, a meal nobody is home for is dropped along with its leftovers, and a
+ * slot people are back for becomes free, or gets its habit back.
+ */
+export function applyDiners(
+  plan: Plan,
+  diners: readonly Diners[],
+  lookup: MealLookup,
+  habitFor: (slot: number) => Meal | undefined,
+): Plan {
+  const slots = [...plan];
+  const home = (slot: number) => portionsOf(diners[slot] ?? { adults: 0, kids: 0 }) > 0;
+  // Leftovers always come after the meal that feeds them, so one pass in order sees every meal first.
+  slots.forEach((entry, slot) => {
+    if (home(slot)) {
+      if (entry.kind !== "none") return;
+      const habit = habitFor(slot);
+      slots[slot] = habit ? { kind: "cook", mealId: habit.id, portions: 0, factor: 1, habit: true } : FREE;
+      return;
+    }
+    if (entry.kind === "cook") detachLeftovers(slots, slot);
+    slots[slot] = { kind: "none" };
+  });
   return withPortions(slots, diners, lookup);
 }
