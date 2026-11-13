@@ -27,6 +27,14 @@ npm run preview    # serve the build locally, Worker included
 
 The app and its API are one Cloudflare Worker (`wrangler.jsonc`): the Worker serves the built app as static assets and handles `/api/*`, and each shared household is a SQLite-backed Durable Object.
 
+Pushes to `main` deploy automatically through Cloudflare Workers Builds, with these settings (Worker › Settings › Build):
+
+- Build command: `npm test && npm run build`, so a failing test stops the deploy
+- Deploy command: `npx wrangler deploy`
+- Node version: from `.node-version`
+
+To deploy by hand instead:
+
 ```sh
 npx wrangler login   # once
 npm run deploy       # typecheck, build, wrangler deploy
