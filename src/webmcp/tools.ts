@@ -12,7 +12,7 @@ import { DAYS, fitsSlot, hasLeftovers, isTooLong, scaleQuantity, slotIndex, type
 import { seasonLabel } from "../lib/season";
 import { shoppingList, splitPantry } from "../lib/shopping";
 import { stepText } from "../lib/steps";
-import { mealTimeLabel } from "../lib/time";
+import { mealTimeLabel, parseMealTime } from "../lib/time";
 import { addDays, mondayOf, weekName, weekRange } from "../lib/week";
 import { drawPlan } from "../store/plan";
 import { counts, isAvailable, isReady, planKey, required } from "../store/selectors";
@@ -94,12 +94,70 @@ function dishSummary(state: AppState, meal: Meal) {
     rating: state.ratings[meal.id] === 1 ? "love" : state.ratings[meal.id] === -1 ? "meh" : undefined,
     kids_like: !!state.kidsLike[meal.id] || undefined,
     own_dish: !!meal.custom || undefined,
+    edited_by_household: !!meal.edited || undefined,
   };
 }
 
 function getDish(catalogue: Catalogue, id: unknown): Meal {
   const meal = typeof id === "string" ? catalogue.get(id) : undefined;
   if (!meal) throw new ToolError(`No dish with id "${id}". Use search_dishes to find ids.`);
+  return meal;
+}
+
+const ALL_YEAR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const UNITS = ["", "g", "cl", ...COUNT_UNITS];
+
+const RECIPE_NOTES =
+  "Ingredient quantities are for about 2.5 portions, or 5 when the dish makes two meals; the plan scales them. In steps, wrap quantities that should follow the portions in braces, like « {3 œufs} » or « {200 g} ».";
+
+/** The recipe fields add_own_dish and edit_dish take. */
+const RECIPE_FIELDS = {
+  name: { type: "string" },
+  type: { type: "string", enum: ["dinner", "lunch", "either"] },
+  minutes: { type: "integer", minimum: 1, description: "Total time." },
+  active_minutes: { type: "integer", minimum: 1, description: "Hands-on time, if less than the total." },
+  makes_two_meals: { type: "boolean", description: "The plan then books leftovers for the next meal." },
+  months: { type: "array", items: { type: "integer", minimum: 1, maximum: 12 }, description: "Months in season. Defaults to all year." },
+  emoji: { type: "string" },
+  ingredients: {
+    type: "array",
+    items: object(
+      {
+        name: { type: "string", description: "Prefer names already used by other dishes, so they land in the right aisle." },
+        quantity: { type: "number" },
+        unit: { type: "string", enum: UNITS },
+      },
+      ["name"],
+    ),
+  },
+  steps: { type: "array", items: { type: "string" } },
+};
+
+/** `base` with the recipe fields given in `input`; fields left out keep their value. */
+function applyRecipe(base: Meal, input: Record<string, unknown>): Meal {
+  const meal: Meal = { ...base };
+  if (typeof input.name === "string" && input.name.trim()) meal.name = input.name.trim();
+  if (typeof input.emoji === "string" && input.emoji.trim()) meal.emoji = input.emoji.trim();
+  if (input.type === "dinner" || input.type === "lunch" || input.type === "either") meal.type = input.type;
+  if (input.minutes !== undefined || input.active_minutes !== undefined) {
+    const current = parseMealTime(base.time);
+    const total = Math.max(1, Math.round(Number(input.minutes ?? current.total) || current.total));
+    const active = Math.round(Number(input.active_minutes ?? (current.active < current.total ? current.active : 0)) || 0);
+    meal.time = mealTimeLabel(total, active || undefined);
+  }
+  if (typeof input.makes_two_meals === "boolean") meal.batch = input.makes_two_meals || undefined;
+  if (Array.isArray(input.months)) {
+    const months = input.months.filter((m): m is number => Number.isInteger(m) && m >= 1 && m <= 12);
+    meal.months = months.length ? [...new Set(months)].sort((a, b) => a - b) : ALL_YEAR;
+  }
+  if (Array.isArray(input.ingredients)) {
+    meal.ingredients = input.ingredients.flatMap((raw): Ingredient[] => {
+      const i = raw as { name?: unknown; quantity?: unknown; unit?: unknown };
+      const unit = typeof i.unit === "string" && UNITS.includes(i.unit) ? i.unit : "";
+      return typeof i.name === "string" && i.name.trim() ? [[i.name.trim(), Number(i.quantity) > 0 ? Number(i.quantity) : 1, unit]] : [];
+    });
+  }
+  if (Array.isArray(input.steps)) meal.steps = input.steps.map(String).filter((step) => step.trim());
   return meal;
 }
 
@@ -289,6 +347,14 @@ export function createTools(api: CrumbleApi): Tool[] {
           })),
           steps: recipeSteps(dish).map((step) => stepText(step, factor)),
           note: "Plus salt, pepper and oil.",
+          // What edit_dish takes, for changing the recipe.
+          editable: {
+            minutes: parseMealTime(dish.time).total,
+            active_minutes: parseMealTime(dish.time).active,
+            months: dish.months,
+            ingredients: dish.ingredients.map(([name, quantity, unit]) => ({ name, quantity, unit })),
+            steps: recipeSteps(dish),
+          },
         };
       },
     }),
@@ -379,74 +445,61 @@ export function createTools(api: CrumbleApi): Tool[] {
     tool({
       name: "add_own_dish",
       title: "Ajouter un plat de la maison",
-      description:
-        "Add one of the household's own recipes. It is liked straight away, so it can be planned. Quantities are for about 2.5 portions, or 5 when it makes two meals. In steps, wrap quantities that should follow the portions in braces, like « {3 œufs} » or « {200 g} ».",
-      inputSchema: object(
-        {
-          name: { type: "string" },
-          type: { type: "string", enum: ["dinner", "lunch", "either"] },
-          minutes: { type: "integer", minimum: 1, description: "Total time." },
-          active_minutes: { type: "integer", minimum: 1, description: "Hands-on time, if less than the total." },
-          makes_two_meals: { type: "boolean", description: "The plan then books leftovers for the next meal." },
-          months: {
-            type: "array",
-            items: { type: "integer", minimum: 1, maximum: 12 },
-            description: "Months in season. Defaults to all year.",
-          },
-          emoji: { type: "string" },
-          ingredients: {
-            type: "array",
-            items: object(
-              {
-                name: {
-                  type: "string",
-                  description: "Prefer names already used by other dishes, so they land in the right aisle.",
-                },
-                quantity: { type: "number" },
-                unit: { type: "string", enum: ["", "g", "cl", ...COUNT_UNITS] },
-              },
-              ["name"],
-            ),
-          },
-          steps: { type: "array", items: { type: "string" } },
-        },
-        ["name", "type", "minutes", "ingredients", "steps"],
-      ),
+      description: `Add one of the household's own recipes. It is liked straight away, so it can be planned. ${RECIPE_NOTES}`,
+      inputSchema: object(RECIPE_FIELDS, ["name", "type", "minutes", "ingredients", "steps"]),
       run: (input) => {
-        const name = String(input.name ?? "").trim();
-        if (!name) throw new ToolError("The dish needs a name.");
-        const ingredients = (Array.isArray(input.ingredients) ? input.ingredients : []).flatMap((raw): Ingredient[] => {
-          const i = raw as { name?: unknown; quantity?: unknown; unit?: unknown };
-          const unit = typeof i.unit === "string" && ["", "g", "cl", ...COUNT_UNITS].includes(i.unit) ? i.unit : "";
-          return typeof i.name === "string" && i.name.trim()
-            ? [[i.name.trim(), Number(i.quantity) > 0 ? Number(i.quantity) : 1, unit]]
-            : [];
-        });
-        const months = Array.isArray(input.months)
-          ? input.months.filter((m): m is number => Number.isInteger(m) && m >= 1 && m <= 12)
-          : [];
-        const minutes = Math.max(1, Math.round(Number(input.minutes) || 30));
-        const active = Math.round(Number(input.active_minutes) || 0);
+        if (!String(input.name ?? "").trim()) throw new ToolError("The dish needs a name.");
         const id = `perso-${api.now().getTime().toString(36)}`;
-        api.dispatch({
-          type: "saveMeal",
-          meal: {
-            id,
-            name,
-            emoji: typeof input.emoji === "string" && input.emoji.trim() ? input.emoji.trim() : "🍽",
-            type: input.type === "lunch" || input.type === "either" ? input.type : "dinner",
-            time: mealTimeLabel(minutes, active || undefined),
-            batch: input.makes_two_meals === true || undefined,
-            ingredients,
-            months: months.length ? months : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-            steps: (Array.isArray(input.steps) ? input.steps : []).map(String).filter((s) => s.trim()),
-            custom: true,
-          },
-        });
+        const base: Meal = { id, name: "", emoji: "🍽", type: "dinner", time: "30 min", ingredients: [], months: ALL_YEAR, steps: [] };
+        api.dispatch({ type: "saveMeal", meal: { ...applyRecipe(base, input), custom: true } });
         const dish = context().catalogue.get(id);
         if (!dish) throw new ToolError("The dish could not be saved.");
-        api.notify(`🤖 Nouveau plat : ${name}`);
+        api.notify(`🤖 Nouveau plat : ${dish.name}`);
         return dishSummary(api.getState(), dish);
+      },
+    }),
+    tool({
+      name: "edit_dish",
+      title: "Modifier une recette",
+      description: `Change any dish: the household's own, or a built-in one (the household then gets its own version, which keeps the dish's picture and its place in plans; reset_dish restores the original). Only the given fields change; ingredients and steps, when given, replace the whole list, so start from get_recipe's « editable » field. ${RECIPE_NOTES}`,
+      inputSchema: object({ dish_id: dishId, ...RECIPE_FIELDS }, ["dish_id"]),
+      run: (input) => {
+        const { catalogue } = context();
+        const dish = getDish(catalogue, input.dish_id);
+        if (input.name !== undefined && !String(input.name).trim()) throw new ToolError("The dish needs a name.");
+        // Steps are stored with the dish once it's edited, so the original ones carry over.
+        api.dispatch({ type: "saveMeal", meal: applyRecipe({ ...dish, steps: recipeSteps(dish) }, input) });
+        const saved = context().catalogue.get(dish.id)!;
+        api.notify(`🤖 Recette modifiée : ${saved.name}`);
+        return { ...dishSummary(api.getState(), saved), ingredients: saved.ingredients.map(([name, quantity, unit]) => ({ name, quantity, unit })), steps: recipeSteps(saved) };
+      },
+    }),
+    tool({
+      name: "reset_dish",
+      title: "Revenir à la recette d'origine",
+      description: "Undo the household's changes to a built-in dish and bring back the app's original recipe.",
+      inputSchema: object({ dish_id: dishId }, ["dish_id"]),
+      run: (input) => {
+        const dish = getDish(context().catalogue, input.dish_id);
+        if (!dish.edited) throw new ToolError(`${dish.name} hasn't been changed${dish.custom ? ": it's one of the household's own dishes (use delete_own_dish to remove it)" : ""}.`);
+        api.dispatch({ type: "deleteMeal", id: dish.id });
+        const original = context().catalogue.get(dish.id)!;
+        api.notify(`🤖 Recette d'origine : ${original.name}`);
+        return dishSummary(api.getState(), original);
+      },
+    }),
+    tool({
+      name: "delete_own_dish",
+      title: "Supprimer un plat de la maison",
+      description: "Delete one of the household's own dishes. It disappears from plans and habits. Built-in dishes can't be deleted, only passed on.",
+      inputSchema: object({ dish_id: dishId }, ["dish_id"]),
+      annotations: { consequentialHint: true },
+      run: (input) => {
+        const dish = getDish(context().catalogue, input.dish_id);
+        if (!dish.custom) throw new ToolError(`${dish.name} is built in: pass on it with set_dish_preference instead, or reset_dish to undo changes.`);
+        api.dispatch({ type: "deleteMeal", id: dish.id });
+        api.notify(`🤖 Plat supprimé : ${dish.name}`);
+        return { deleted: dish.name };
       },
     }),
 

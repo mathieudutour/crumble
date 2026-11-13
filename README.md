@@ -5,7 +5,7 @@ Pick seasonal meals by swiping, then get a week of lunches and dinners, the left
 - **Planning**: plan this week or the next, with dates. Swap any meal, move it to another day, or lock it so a new draw keeps it. Weekday dinners stay under a time limit and longer dishes go to the weekend; meals sharing main ingredients are spread out.
 - **Shopping list**: quantities add up across the week; ingredients you always have at home (🏠) drop off the list.
 - **Household** (« Foyer »): who eats when, weekly habits (pasta on Wednesday…), diet (vegetarian, no pork, no fish), ingredients to avoid (a dislike or an allergy: dishes containing them are left out, including cupboard seasonings mentioned in the steps) and the weekday time limit.
-- **Your own dishes**: add family recipes; they are swiped, planned and shopped like the others.
+- **Your own dishes**: add family recipes; they are swiped, planned and shopped like the others. Built-in recipes can be edited too: the household's version replaces the original (same picture, same place in plans) until they reset it.
 - **History**: past weeks stay viewable. Rate dishes after eating them: favourites come first, dishes eaten recently are pushed back.
 - **Cooking mode**: full screen, one step at a time, screen kept awake, and every duration in a step starts a timer.
 
@@ -15,7 +15,7 @@ Alone, everything stays on the phone (`localStorage`). Shared, a Cloudflare Dura
 
 ## AI agents (WebMCP)
 
-Crumble registers tools with [WebMCP](https://webmachinelearning.github.io/webmcp/), so an AI agent working in the browser can use the open app: read the plan, shopping list, recipes and household settings; like or pass dishes, draw a plan, change, move or lock meals, tick shopping items, set who eats when, habits, diet and ingredients to avoid, and add the household's own dishes. Each change shows a « 🤖 … » message, and in a shared household it syncs like any other change.
+Crumble registers tools with [WebMCP](https://webmachinelearning.github.io/webmcp/), so an AI agent working in the browser can use the open app: read the plan, shopping list, recipes and household settings; like or pass dishes, draw a plan, change, move or lock meals, tick shopping items, set who eats when, habits, diet and ingredients to avoid; and add, edit or delete recipes. Each change shows a « 🤖 … » message, and in a shared household it syncs like any other change.
 
 The tools are in `src/webmcp/tools.ts` and act through the same actions as the app's buttons; `src/webmcp/register.ts` registers them on `document.modelContext` (or the older `navigator.modelContext`) and does nothing in browsers without WebMCP.
 

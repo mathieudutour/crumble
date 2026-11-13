@@ -18,6 +18,7 @@ export function MealTags({ meal }: { meal: Meal }) {
       {!fixed && <span className="tag">🗓 {seasonLabel(meal)}</span>}
       {eaten !== undefined && <span className="tag recent">Mangé {eatenLabel(eaten)}</span>}
       {meal.custom && <span className="tag">✍️ Mon plat</span>}
+      {meal.edited && <span className="tag">✏️ Ma version</span>}
     </div>
   );
 }

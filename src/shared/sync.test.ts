@@ -127,3 +127,31 @@ describe("normalizeHousehold", () => {
     expect(state.settings.weeknightMinutes).toBe(45);
   });
 });
+
+describe("household versions of built-in dishes", () => {
+  const original = makeCatalogue().get("cabillaud")!;
+  const edit = { ...original, name: "Cabillaud de la maison", ingredients: [["Dos de cabillaud", 500, "g"] as const] };
+
+  it("replace the built-in dish, in the same place, until reset", () => {
+    let state = household();
+    state = householdReducer(state, { type: "saveMeal", meal: edit });
+    const catalogue = makeCatalogue(state.customMeals);
+    expect(catalogue.get("cabillaud")).toMatchObject({ name: "Cabillaud de la maison", edited: true });
+    expect(catalogue.get("cabillaud")!.custom).toBeUndefined();
+    expect(catalogue.swipeable.filter((m) => m.id === "cabillaud")).toHaveLength(1);
+    expect(catalogue.swipeable.findIndex((m) => m.id === "cabillaud")).toBe(makeCatalogue().swipeable.findIndex((m) => m.id === "cabillaud"));
+    state = householdReducer(state, { type: "saveMeal", meal: { ...edit, name: "Cabillaud, version 2" } });
+    expect(state.customMeals).toHaveLength(1);
+    state = householdReducer(state, { type: "deleteMeal", id: "cabillaud" });
+    expect(makeCatalogue(state.customMeals).get("cabillaud")).toEqual(original);
+    expect(state.order).toContain("cabillaud");
+  });
+
+  it("keep a habit-only dish habit-only, and never let an own dish be one", () => {
+    const pesto = makeCatalogue().get("pesto")!;
+    let state = householdReducer(household(), { type: "saveMeal", meal: { ...pesto, type: "dinner" } });
+    expect(makeCatalogue(state.customMeals).get("pesto")!.type).toBe("fixed");
+    state = householdReducer(state, { type: "saveMeal", meal: { ...pesto, id: "perso-x", type: "fixed" } });
+    expect(makeCatalogue(state.customMeals).get("perso-x")).toBeUndefined();
+  });
+});

@@ -4,7 +4,12 @@ import type { Meal } from "../data/types";
 
 export type MealLookup = (id: string) => Meal | undefined;
 
-/** Built-in dishes plus the household's own. */
+const BUILT_IN = new Map([...MEALS, ...Object.values(FIXED_MEALS)].map((meal) => [meal.id, meal as Meal]));
+
+/** The dish as the app ships it, before any household edit. */
+export const builtInMeal = (id: string): Meal | undefined => BUILT_IN.get(id);
+
+/** Built-in dishes (with the household's edits) plus the household's own. */
 export interface Catalogue {
   /** Meals that can be swiped and planned. */
   swipeable: readonly Meal[];
@@ -14,8 +19,11 @@ export interface Catalogue {
 }
 
 export function makeCatalogue(custom: readonly Meal[] = []): Catalogue {
-  const swipeable = [...MEALS, ...custom];
-  const all = [...swipeable, ...Object.values(FIXED_MEALS)];
+  // The household's version of a built-in dish takes its place; their own dishes come after.
+  const edits = new Map(custom.filter((m) => BUILT_IN.has(m.id)).map((m) => [m.id, m]));
+  const own = custom.filter((m) => !BUILT_IN.has(m.id));
+  const swipeable = [...MEALS.map((m) => edits.get(m.id) ?? m), ...own];
+  const all = [...swipeable, ...Object.values(FIXED_MEALS).map((m) => edits.get(m.id) ?? m)];
   const byId = new Map(all.map((meal) => [meal.id, meal]));
   return { swipeable, all, get: (id) => byId.get(id) };
 }

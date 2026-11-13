@@ -85,11 +85,9 @@ export function RecipeSheet({ mealId, slot, onClose }: Props) {
           </button>
         </div>
         <p className="note spaced">Les coups de cœur passent en premier, dans les cartes comme dans le planning.</p>
-        {meal.custom && (
-          <button className="cta ghost" onClick={() => openSheet((close) => <MealForm meal={meal} onClose={close} />)}>
-            ✏️ Modifier ce plat
-          </button>
-        )}
+        <button className="cta ghost" onClick={() => openSheet((close) => <MealForm meal={meal} onClose={close} />)}>
+          ✏️ Modifier la recette
+        </button>
       </div>
     </Sheet>
   );

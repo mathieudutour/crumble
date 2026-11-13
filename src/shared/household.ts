@@ -4,7 +4,7 @@
 
 import { fitsDiet, NO_DIET, type Diet } from "../data/diet";
 import type { Meal, Rating } from "../data/types";
-import { makeCatalogue, type MealLookup } from "../lib/catalogue";
+import { builtInMeal, makeCatalogue, type MealLookup } from "../lib/catalogue";
 import { avoidedIn } from "../lib/avoid";
 import { applyDiners, clearSlot, moveMeal, placeMeal } from "../lib/planEdit";
 import {
@@ -78,6 +78,7 @@ export type HouseholdAction =
   | { type: "rate"; id: string; rating: Rating | null }
   | { type: "setKidsLike"; id: string; value: boolean }
   | { type: "saveMeal"; meal: Meal }
+  /** Deletes one of the household's own dishes, or brings a built-in dish back to its original recipe. */
   | { type: "deleteMeal"; id: string }
   /** Every dish back in the deck, in the given order. */
   | { type: "resetChoices"; order: string[] };
@@ -124,7 +125,7 @@ export function isMeal(value: unknown): value is Meal {
     isString(value.name) &&
     isString(value.emoji) &&
     isString(value.time) &&
-    ["dinner", "lunch", "either"].includes(value.type as string) &&
+    ["dinner", "lunch", "either", "fixed"].includes(value.type as string) &&
     Array.isArray(value.ingredients) &&
     value.ingredients.every((i) => Array.isArray(i) && isString(i[0]) && typeof i[1] === "number" && isString(i[2])) &&
     Array.isArray(value.months) &&
@@ -145,6 +146,20 @@ function isSlot(value: unknown): value is PlanSlot {
     default:
       return false;
   }
+}
+
+/**
+ * A dish the household saved: their own dish, or their version of a built-in one (same id). A built-in dish keeps its
+ * kind (a habit-only dish stays one); their own dishes can't be habit-only.
+ */
+function asHouseholdMeal(value: unknown): Meal | undefined {
+  if (!isMeal(value)) return undefined;
+  const original = builtInMeal(value.id);
+  if (original) {
+    const type = original.type === "fixed" ? "fixed" : value.type === "fixed" ? original.type : value.type;
+    return { ...value, type, custom: undefined, edited: true };
+  }
+  return value.type === "fixed" ? undefined : { ...value, custom: true, edited: undefined };
 }
 
 const isPlan = (value: unknown): value is Plan =>
@@ -176,7 +191,10 @@ function normalizeSettings(value: unknown, lookup: MealLookup): Settings {
 export function normalizeHousehold(value: unknown, fallbackWeek: string): Household {
   const stored = isObject(value) ? value : {};
   const customMeals = Array.isArray(stored.customMeals)
-    ? stored.customMeals.filter(isMeal).map((m) => ({ ...m, custom: true }))
+    ? stored.customMeals.flatMap((m) => {
+        const meal = asHouseholdMeal(m);
+        return meal ? [meal] : [];
+      })
     : [];
   const lookup = makeCatalogue(customMeals).get;
   const known = (ids: unknown) => strings(ids).filter((id) => lookup(id));
@@ -375,10 +393,11 @@ export function householdReducer(state: Household, action: HouseholdAction): Hou
         ? { ...state, kidsLike: setFlag(state.kidsLike, action.id, action.value === true) }
         : state;
     case "saveMeal": {
-      if (!isMeal(action.meal)) return state;
-      const meal: Meal = { ...action.meal, custom: true };
-      if (state.customMeals.some((m) => m.id === meal.id))
-        return { ...state, customMeals: state.customMeals.map((m) => (m.id === meal.id ? meal : m)) };
+      const meal = asHouseholdMeal(action.meal);
+      if (!meal) return state;
+      // An edit (of a built-in dish, or of their own) replaces the saved version, if any.
+      if (meal.edited || state.customMeals.some((m) => m.id === meal.id))
+        return { ...state, customMeals: [...state.customMeals.filter((m) => m.id !== meal.id), meal] };
       // A dish the household adds is one they like.
       return {
         ...state,
@@ -389,6 +408,8 @@ export function householdReducer(state: Household, action: HouseholdAction): Hou
     }
     case "deleteMeal": {
       if (!state.customMeals.some((m) => m.id === action.id)) return state;
+      // A built-in dish isn't deleted: dropping the household's version brings back the original.
+      if (builtInMeal(action.id)) return { ...state, customMeals: state.customMeals.filter((m) => m.id !== action.id) };
       const customMeals = state.customMeals.filter((m) => m.id !== action.id);
       const remaining = makeCatalogue(customMeals).get;
       const plans = Object.fromEntries(

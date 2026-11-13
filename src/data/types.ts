@@ -22,10 +22,12 @@ export interface Meal {
   ingredients: readonly Ingredient[];
   /** Months (1–12) the meal is in season. */
   months: readonly number[];
-  /** Only for the household's own dishes; built-in recipes live in `RECIPES`. */
+  /** For the household's own and edited dishes; built-in recipes live in `RECIPES`. */
   steps?: readonly string[];
   /** Added by the household. */
   custom?: boolean;
+  /** The household's version of a built-in dish, replacing it (same id) until they reset it. */
+  edited?: boolean;
 }
 
 export type Aisle = "produce" | "meat" | "dairy" | "grocery";

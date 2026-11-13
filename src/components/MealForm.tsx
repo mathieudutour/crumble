@@ -53,6 +53,7 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
   );
   const [steps, setSteps] = useState(meal ? recipeSteps(meal).join("\n") : "");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const builtIn = !!meal && !meal.custom;
 
   const setRow = (key: number, patch: Partial<Row>) =>
     setRows((all) => all.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -69,10 +70,12 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
     dispatch({
       type: "saveMeal",
       meal: {
+        // Fields the form doesn't show (a quiche scaling by whole quiches) carry over.
+        ...meal,
         id: meal?.id ?? `perso-${Date.now().toString(36)}`,
         emoji: emoji.trim() || "🍽",
         name: name.trim(),
-        type,
+        type: meal?.type === "fixed" ? "fixed" : type,
         time: mealTimeLabel(totalMinutes, activeMinutes || undefined),
         batch: batch || undefined,
         ingredients,
@@ -81,7 +84,6 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
           .split("\n")
           .map((s) => s.trim())
           .filter(Boolean),
-        custom: true,
       },
     });
     toast(meal ? "Plat modifié" : "Plat ajouté à tes plats gardés");
@@ -91,7 +93,12 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
   return (
     <Sheet onClose={onClose} labelledBy="meal-form-title">
       <form className="in form" onSubmit={submit}>
-        <SheetHeader id="meal-form-title" title={meal ? "Modifier mon plat" : "Ajouter un plat"} onClose={onClose} />
+        <SheetHeader id="meal-form-title" title={meal ? "Modifier la recette" : "Ajouter un plat"} onClose={onClose} />
+        {builtIn && (
+          <p className="note">
+            Tes changements remplacent la recette d’origine pour le foyer. Tu pourras y revenir à tout moment.
+          </p>
+        )}
 
         <label className="label" htmlFor="meal-name">
           Nom
@@ -128,8 +135,8 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
           />
         </div>
 
-        <span className="label">C’est pour</span>
-        <div className="segmented" role="radiogroup" aria-label="C’est pour">
+        {meal?.type !== "fixed" && <span className="label">C’est pour</span>}
+        <div className="segmented" role="radiogroup" aria-label="C’est pour" hidden={meal?.type === "fixed"}>
           {TYPES.map((t) => (
             <button
               type="button"
@@ -271,18 +278,24 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
         <button type="submit" className="cta">
           {meal ? "Enregistrer" : "Ajouter le plat"}
         </button>
-        {meal && (
+        {meal && (meal.custom || meal.edited) && (
           <button
             type="button"
             className={`cta ghost${confirmDelete ? " danger" : ""}`}
             onClick={() => {
               if (!confirmDelete) return setConfirmDelete(true);
               dispatch({ type: "deleteMeal", id: meal.id });
-              toast("Plat supprimé");
+              toast(meal.custom ? "Plat supprimé" : "Recette d’origine rétablie");
               onClose();
             }}
           >
-            {confirmDelete ? "Sûr ? Touche encore pour supprimer" : "Supprimer ce plat"}
+            {confirmDelete
+              ? meal.custom
+                ? "Sûr ? Touche encore pour supprimer"
+                : "Sûr ? Tes changements seront perdus"
+              : meal.custom
+                ? "Supprimer ce plat"
+                : "Revenir à la recette d’origine"}
           </button>
         )}
       </form>

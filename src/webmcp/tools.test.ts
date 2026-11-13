@@ -151,4 +151,33 @@ describe("WebMCP tools", () => {
     expect(recipe.servings).toBe("5 portions, leftovers included");
     expect(recipe.ingredients[0]).toEqual({ name: "Dos de cabillaud", quantity: "800 g" });
   });
+
+  it("edit a built-in recipe, keeping what wasn't changed, and reset it", async () => {
+    const { call, notices } = setup();
+    const before = await call("get_recipe", { dish_id: "cabillaud" });
+    const ingredients = before.editable.ingredients.map((i: { name: string; quantity: number }) =>
+      i.name === "Dos de cabillaud" ? { ...i, quantity: 600 } : i,
+    );
+    const edited = await call("edit_dish", { dish_id: "cabillaud", ingredients, minutes: 40 });
+    expect(edited).toMatchObject({ id: "cabillaud", time: "40 min", edited_by_household: true });
+    expect(edited.own_dish).toBeUndefined();
+    const after = await call("get_recipe", { dish_id: "cabillaud" });
+    expect(after.ingredients[0]).toEqual({ name: "Dos de cabillaud", quantity: "600 g" });
+    expect(after.steps).toEqual(before.steps);
+    expect(notices).toContain("🤖 Recette modifiée : Cabillaud au four, purée pomme de terre-céleri");
+    await expect(call("delete_own_dish", { dish_id: "cabillaud" })).rejects.toThrow(/built in/);
+    await call("reset_dish", { dish_id: "cabillaud" });
+    expect((await call("get_recipe", { dish_id: "cabillaud" })).ingredients[0]).toEqual(before.ingredients[0]);
+    await expect(call("reset_dish", { dish_id: "cabillaud" })).rejects.toThrow(/hasn't been changed/);
+  });
+
+  it("edit and delete the household's own dish", async () => {
+    const { call } = setup();
+    const dish = await call("add_own_dish", { name: "Soupe de mamie", type: "either", minutes: 30, ingredients: [{ name: "Carottes", quantity: 500, unit: "g" }], steps: ["Cuis 20 min."] });
+    const renamed = await call("edit_dish", { dish_id: dish.id, name: "Soupe de mamie Jeanne", steps: ["Cuis {500 g} de carottes 25 min."] });
+    expect(renamed).toMatchObject({ name: "Soupe de mamie Jeanne", own_dish: true, steps: ["Cuis {500 g} de carottes 25 min."] });
+    await expect(call("edit_dish", { dish_id: dish.id, name: " " })).rejects.toThrow(/needs a name/);
+    expect(await call("delete_own_dish", { dish_id: dish.id })).toEqual({ deleted: "Soupe de mamie Jeanne" });
+    await expect(call("get_recipe", { dish_id: dish.id })).rejects.toThrow(/No dish/);
+  });
 });
