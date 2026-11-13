@@ -17,7 +17,7 @@ const ROOT = join(import.meta.dirname, "..");
 const SOURCES = join(ROOT, "dish-sources");
 const OUTPUT = join(ROOT, "src/assets/dishes");
 const PROMPTS = join(ROOT, "assets/dishes/prompts.md");
-/** Pixels of the square WebP shipped with the app: sharp on a phone card, about 40 KB. */
+/** Pixels of the square WebP shipped with the app: sharp on a phone card, about 50 KB at quality 70. */
 const SIZE = 640;
 
 const DISHES: Meal[] = [...MEALS, ...Object.values(FIXED_MEALS)];
@@ -153,11 +153,11 @@ function importImages() {
       `${SIZE}x${SIZE}`,
       "-strip",
       "-quality",
-      "80",
+      "70",
       "-define",
       "webp:method=6",
       "-define",
-      "webp:alpha-quality=90",
+      "webp:alpha-quality=80",
       join(OUTPUT, `${id}.webp`),
     ]);
     console.log(`✓ ${id}${opaque ? "  (no transparent background: it will show as a square on the card)" : ""}`);
