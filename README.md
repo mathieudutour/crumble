@@ -19,6 +19,20 @@ Crumble registers tools with [WebMCP](https://webmachinelearning.github.io/webmc
 
 The tools are in `src/webmcp/tools.ts` and act through the same actions as the app's buttons; `src/webmcp/register.ts` registers them on `document.modelContext` (or the older `navigator.modelContext`) and does nothing in browsers without WebMCP.
 
+### Agents outside the browser (remote MCP)
+
+Agents that run elsewhere, like [Hermes](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp), use the same tools through a remote MCP endpoint: `POST /api/mcp` (Streamable HTTP, stateless JSON). In a shared household, « Foyer › Agents IA › Connecter un agent » creates a token for each agent, shown once with the configuration to paste, and can revoke it. For Hermes, in `~/.hermes/config.yaml`:
+
+```yaml
+mcp_servers:
+  crumble:
+    url: "https://<your Crumble site>/api/mcp"
+    headers:
+      Authorization: "Bearer <token>"
+```
+
+The token's first part names the household's Durable Object (not the household key, which it doesn't reveal); the object keeps only a hash of the rest. An agent's changes go through the same path as a phone's, sync live, and show « 🤖 <agent> · … » on the phones. The protocol is in `src/shared/mcp.ts`, served from `worker/household.ts`.
+
 ## Develop
 
 ```sh

@@ -5,7 +5,7 @@ import type { Catalogue } from "../lib/catalogue";
 import { dayOf, type Preferences } from "../lib/planning";
 import { isInSeason } from "../lib/season";
 import { addDays, daysBetween, seasonMonthOf } from "../lib/week";
-import type { AppState } from "./store";
+import type { AppState } from "./types";
 
 const canDine = (m: Meal) => m.type !== "lunch";
 const canLunch = (m: Meal) => m.type !== "dinner";

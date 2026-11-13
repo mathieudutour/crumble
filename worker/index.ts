@@ -32,8 +32,25 @@ export default {
       return json({ key, version: created.version }, 201);
     }
 
-    const sync = url.pathname.match(/^\/api\/households\/([A-Za-z0-9_-]{16,64})\/sync$/);
-    if (sync) return env.HOUSEHOLD.get(env.HOUSEHOLD.idFromName(sync[1]!)).fetch(request);
+    const household = url.pathname.match(/^\/api\/households\/([A-Za-z0-9_-]{16,64})\/(sync|agents(?:\/[A-Za-z0-9_-]+)?)$/);
+    if (household) return env.HOUSEHOLD.get(env.HOUSEHOLD.idFromName(household[1]!)).fetch(request);
+
+    // Remote MCP for agents like Hermes. The token's first part names the household's Durable Object (not its key);
+    // the object checks the rest.
+    if (url.pathname === "/api/mcp") {
+      const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+      const [objectId] = token.split(".");
+      let id: DurableObjectId;
+      try {
+        id = env.HOUSEHOLD.idFromString(objectId ?? "");
+      } catch {
+        return Response.json(
+          { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Missing or invalid Crumble agent token" } },
+          { status: 401, headers: { "www-authenticate": 'Bearer realm="crumble"' } },
+        );
+      }
+      return env.HOUSEHOLD.get(id).fetch(request);
+    }
 
     if (url.pathname.startsWith("/api/")) return json({ error: "not found" }, 404);
     return env.ASSETS.fetch(request);

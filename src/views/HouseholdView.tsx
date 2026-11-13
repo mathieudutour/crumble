@@ -1,5 +1,6 @@
 import { DishThumb } from "../components/DishArt";
 import { useMemo, useState } from "react";
+import { Agents } from "../components/Agents";
 import { Sharing } from "../components/Sharing";
 import { useUi } from "../components/UiProvider";
 import type { Diet } from "../data/diet";
@@ -241,7 +242,7 @@ const DIETS: { key: keyof Diet; label: string }[] = [
 const LIMITS = [30, 45, 60, null];
 
 export function HouseholdView({ onPlan, onSwipe }: { onPlan: () => void; onSwipe: () => void }) {
-  const { state, catalogue, dispatch, buildPlan } = useStore();
+  const { state, status, catalogue, dispatch, buildPlan } = useStore();
   const { toast } = useUi();
   const { diet, weeknightMinutes } = state.settings;
   const [editingDiners, setEditingDiners] = useState(false);
@@ -251,6 +252,13 @@ export function HouseholdView({ onPlan, onSwipe }: { onPlan: () => void; onSwipe
     <>
       <h2>Foyer partagé</h2>
       <Sharing />
+
+      <h2 className="section-title">Agents IA</h2>
+      {status.mode === "household" ? (
+        <Agents householdKey={status.key} />
+      ) : (
+        <p className="note">Partage d’abord ton foyer, même si tu es seul : un agent IA comme Hermes pourra alors utiliser Crumble pour toi.</p>
+      )}
 
       <h2 className="section-title">Qui mange quand ?</h2>
       <DinersWeek />

@@ -3,7 +3,7 @@ import { lockedSlots, makePlan } from "../lib/planning";
 import { addDays, mondayOf } from "../lib/week";
 import type { HouseholdAction } from "../shared/household";
 import { fitsHousehold, likedMeals, planKey, preferencesOf } from "./selectors";
-import type { AppState } from "./store";
+import type { AppState } from "./types";
 
 /** History kept, in weeks. */
 const HISTORY_WEEKS = 12;

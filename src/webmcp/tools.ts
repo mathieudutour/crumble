@@ -16,7 +16,7 @@ import { mealTimeLabel, parseMealTime } from "../lib/time";
 import { addDays, mondayOf, weekName, weekRange } from "../lib/week";
 import { drawPlan } from "../store/plan";
 import { counts, isAvailable, isReady, planKey, required } from "../store/selectors";
-import type { Action, AppState } from "../store/store";
+import type { Action, AppState } from "../store/types";
 
 /** What the tools need from the app. */
 export interface CrumbleApi {

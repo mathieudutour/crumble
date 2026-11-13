@@ -1,5 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { normalizeHousehold } from "../src/shared/household";
+import { handleMcp } from "../src/shared/mcp";
+import { createTools } from "../src/webmcp/tools";
 import {
   applyOnServer,
   MAX_MESSAGE_BYTES,
@@ -11,6 +13,34 @@ import {
 /** A household that nobody opens for this long is deleted. */
 const EXPIRY_MS = 400 * 24 * 60 * 60 * 1000;
 const STORAGE_KEY = "household";
+const AGENTS_KEY = "agents";
+const MAX_AGENTS = 10;
+
+/** An agent allowed to use the household through MCP. Only a hash of its secret is kept. */
+interface Agent {
+  id: string;
+  label: string;
+  hash: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+const randomId = (bytes: number) =>
+  btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(bytes))))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+async function sha256(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const unauthorized = () =>
+  Response.json(
+    { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Invalid or revoked Crumble agent token" } },
+    { status: 401, headers: { "www-authenticate": 'Bearer realm="crumble"' } },
+  );
 
 /**
  * One Durable Object per household: it holds the shared state and relays every change to the household's phones
@@ -36,6 +66,10 @@ export class Household extends DurableObject<Env> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/mcp") return this.mcp(request);
+    const agents = url.pathname.match(/\/agents(?:\/([A-Za-z0-9_-]+))?$/);
+    if (agents) return this.manageAgents(request, agents[1]);
     if (request.headers.get("Upgrade") !== "websocket") return new Response("Expected a WebSocket", { status: 426 });
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
@@ -70,6 +104,73 @@ export class Household extends DurableObject<Env> {
     } catch {
       // Already closed.
     }
+  }
+
+  // ---------- Agents (remote MCP) ----------
+
+  /** Members of the household (they have its key) create, list and revoke agent tokens. */
+  private async manageAgents(request: Request, id: string | undefined): Promise<Response> {
+    if (!this.server) return Response.json({ error: "unknown household" }, { status: 404 });
+    const agents = (await this.ctx.storage.get<Agent[]>(AGENTS_KEY)) ?? [];
+    const visible = (a: Agent) => ({ id: a.id, label: a.label, createdAt: a.createdAt, lastUsedAt: a.lastUsedAt });
+    if (request.method === "GET" && !id) return Response.json(agents.map(visible));
+    if (request.method === "POST" && !id) {
+      if (agents.length >= MAX_AGENTS) return Response.json({ error: "too many agents" }, { status: 409 });
+      const body = (await request.json().catch(() => ({}))) as { label?: unknown };
+      const label = (typeof body.label === "string" ? body.label.trim() : "").slice(0, 40) || "Agent";
+      const secret = randomId(32);
+      const agent: Agent = { id: randomId(6), label, hash: await sha256(secret), createdAt: new Date().toISOString() };
+      await this.ctx.storage.put(AGENTS_KEY, [...agents, agent]);
+      // The token routes to this household without revealing its key; it's shown once and never stored.
+      return Response.json({ ...visible(agent), token: `${this.ctx.id.toString()}.${secret}` }, { status: 201 });
+    }
+    if (request.method === "DELETE" && id) {
+      await this.ctx.storage.put(AGENTS_KEY, agents.filter((a) => a.id !== id));
+      return new Response(null, { status: 204 });
+    }
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  /** The household's tools over MCP, for an agent holding a token. Its changes reach the phones like their own. */
+  private async mcp(request: Request): Promise<Response> {
+    if (request.method !== "POST") return new Response(null, { status: 405, headers: { allow: "POST" } });
+    const [, secret] = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").split(".");
+    const agents = (await this.ctx.storage.get<Agent[]>(AGENTS_KEY)) ?? [];
+    const hash = secret ? await sha256(secret) : "";
+    const agent = agents.find((a) => a.hash === hash);
+    if (!agent || !this.server) return unauthorized();
+    if (Number(request.headers.get("content-length") ?? 0) > MAX_MESSAGE_BYTES) return new Response("Too large", { status: 413 });
+    const body = await request.json().catch(() => null);
+
+    // Tools run on a working copy; their actions go through the same path as a phone's.
+    let working = this.server;
+    const applied: ServerMessage[] = [];
+    const notices: string[] = [];
+    const tools = createTools({
+      getState: () => ({ ...working.household, swipes: [] }),
+      dispatch: (action) => {
+        if (action.type === "undo") return;
+        const { server, reply } = applyOnServer(working, { id: crypto.randomUUID(), action });
+        if (reply.t !== "applied") return;
+        working = server;
+        applied.push(reply);
+      },
+      notify: (text) => notices.push(text.replace(/^🤖 /, `🤖 ${agent.label} · `)),
+      now: () => new Date(),
+    });
+    const result = await handleMcp(body, tools);
+
+    if (applied.length) await this.save(working);
+    for (const peer of this.ctx.getWebSockets()) {
+      for (const message of applied) this.reply(peer, message);
+      for (const text of notices) this.reply(peer, { t: "notice", text });
+    }
+    // Remember when an agent was last used (at most once an hour), to spot tokens worth revoking.
+    const now = new Date();
+    if (!agent.lastUsedAt || now.getTime() - Date.parse(agent.lastUsedAt) > 3_600_000) {
+      await this.ctx.storage.put(AGENTS_KEY, agents.map((a) => (a.id === agent.id ? { ...a, lastUsedAt: now.toISOString() } : a)));
+    }
+    return result.json === undefined ? new Response(null, { status: result.status }) : Response.json(result.json, { status: result.status });
   }
 
   async alarm() {

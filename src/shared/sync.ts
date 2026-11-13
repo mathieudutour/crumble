@@ -22,7 +22,9 @@ export type ServerMessage =
   | { t: "duplicate"; id: string }
   | { t: "rejected"; id: string }
   /** The household doesn't exist (a wrong or expired link). */
-  | { t: "unknown" };
+  | { t: "unknown" }
+  /** Something to tell the people using the app, like what a connected agent just did. */
+  | { t: "notice"; text: string };
 
 /** Largest message accepted, in bytes. */
 export const MAX_MESSAGE_BYTES = 512 * 1024;
@@ -90,6 +92,7 @@ export function receive(sync: ClientSync, message: ServerMessage): { sync: Clien
     case "rejected":
       return { sync: { ...sync, pending: sync.pending.filter((e) => e.id !== message.id) } };
     case "unknown":
+    case "notice":
       return { sync };
   }
 }

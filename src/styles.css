@@ -1297,6 +1297,37 @@ textarea.field {
   margin: 0 auto 4px;
 }
 
+.agent-token {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.agent-token pre {
+  background: var(--soft);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.agent-token code {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.agent-token .row .cta {
+  flex: 1;
+}
+
 .invite {
   display: flex;
   gap: 14px;

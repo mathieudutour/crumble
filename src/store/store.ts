@@ -19,11 +19,9 @@ import {
 } from "../shared/sync";
 import { isSwipe, popUndo, type Swipe } from "./swipes";
 
-/** What the app shows: the household, plus this phone's swipe history for undo. */
-export type AppState = Household & { swipes: Swipe[] };
+import type { Action, AppState } from "./types";
 
-/** `undo` only exists on this phone: it undoes this phone's last swipe, never the other person's. */
-export type Action = HouseholdAction | { type: "undo" };
+export type { Action, AppState } from "./types";
 
 export type Connection = "connecting" | "online" | "offline";
 
@@ -265,6 +263,10 @@ export class AppStore {
   }
 
   private receive(message: ServerMessage) {
+    if (message.t === "notice") {
+      this.onNotice?.(message.text);
+      return;
+    }
     if (message.t === "unknown") {
       this.leave(false);
       this.onNotice?.("Ce lien de foyer ne marche pas ou plus. Tu continues seul sur ce téléphone.");
