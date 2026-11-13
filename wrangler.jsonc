@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crumble",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    // Hash routes (#planning…) all load index.html; only /api reaches the Worker.
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "HOUSEHOLD", "class_name": "Household" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Household"] }],
+  "observability": { "enabled": true },
+}
