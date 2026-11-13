@@ -42,13 +42,4 @@ export function typeLabel(meal: Meal): string {
   }
 }
 
-/** Background hue of a meal's card: one colour family per kind of meal. */
-export function mealHue(meal: Meal): number {
-  if (meal.type === "fixed") return 30;
-  if (meal.quiche) return 40;
-  if (meal.type === "dinner") return 16;
-  if (meal.type === "lunch") return 100;
-  return 280;
-}
-
 export const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;

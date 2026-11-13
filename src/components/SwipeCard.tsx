@@ -1,8 +1,7 @@
 import { useRef, type PointerEvent, type Ref } from "react";
 import type { Meal } from "../data/types";
-import { mealHue } from "../lib/format";
 import { DishArt } from "./DishArt";
-import { MealTags, mealGradient } from "./MealTags";
+import { MealTags } from "./MealTags";
 
 /** Horizontal drag, in px, past which a release counts as a swipe. */
 const SWIPE_THRESHOLD = 90;
@@ -96,7 +95,7 @@ export function SwipeCard({ meal, depth, ref, onTap, onSwipe }: Props) {
       aria-hidden={!isTop}
       {...handlers}
     >
-      <div className="pic" style={{ background: mealGradient(mealHue(meal)) }}>
+      <div className="pic">
         <DishArt meal={meal} />
         <div ref={likeStamp} className="stamp like">
           MIAM

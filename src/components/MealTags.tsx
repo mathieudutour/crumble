@@ -22,6 +22,3 @@ export function MealTags({ meal }: { meal: Meal }) {
   );
 }
 
-/** Soft two-tone gradient behind a meal's emoji. */
-export const mealGradient = (hue: number, end = 76) =>
-  `linear-gradient(160deg, hsl(${hue} 75% 88%), hsl(${hue + 20} 65% ${end}%))`;

@@ -4,6 +4,7 @@ import { formatQuantity } from "../lib/format";
 import { scaleQuantity, type CookSlot } from "../lib/planning";
 import { stepParts } from "../lib/steps";
 import { useStore } from "../store/StoreProvider";
+import { DishArt } from "./DishArt";
 import { StepText } from "./StepText";
 import { TimerList, useTimers } from "./Timers";
 
@@ -77,9 +78,7 @@ export function CookMode({ mealId, slot, onClose }: Props) {
           ✕
         </button>
         <div>
-          <div className="cook-title">
-            {meal.emoji} {meal.name}
-          </div>
+          <div className="cook-title">{meal.name}</div>
           <div className="note">
             Étape {index + 1} sur {steps.length}
           </div>
@@ -113,6 +112,12 @@ export function CookMode({ mealId, slot, onClose }: Props) {
             onTimer={(seconds) => start(`${meal.name} · étape ${index + 1}`, seconds)}
           />
         </p>
+      )}
+      {/* The dish fills the space a short step leaves, and shrinks away for a long one. */}
+      {!showIngredients && (
+        <div className="cook-art">
+          <DishArt meal={meal} />
+        </div>
       )}
       {!showIngredients &&
         stepParts(step, factor).some((part) => typeof part !== "string" && part.kind === "timer") && (

@@ -1,11 +1,11 @@
 import { avoidedIn } from "../lib/avoid";
 import { recipeSteps } from "../lib/catalogue";
-import { decimal, formatQuantity, mealHue } from "../lib/format";
+import { decimal, formatQuantity } from "../lib/format";
 import { baseServings, scaleQuantity, type CookSlot } from "../lib/planning";
 import { useStore } from "../store/StoreProvider";
 import { DishArt } from "./DishArt";
 import { MealForm } from "./MealForm";
-import { MealTags, mealGradient } from "./MealTags";
+import { MealTags } from "./MealTags";
 import { Sheet } from "./Sheet";
 import { StepText } from "./StepText";
 import { useUi } from "./UiProvider";
@@ -33,7 +33,7 @@ export function RecipeSheet({ mealId, slot, onClose }: Props) {
 
   return (
     <Sheet onClose={onClose} labelledBy="recipe-title">
-      <div className="top" style={{ background: mealGradient(mealHue(meal), 78) }}>
+      <div className="top">
         <DishArt meal={meal} />
         <button className="x" onClick={onClose} aria-label="Fermer">
           ✕

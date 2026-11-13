@@ -189,7 +189,12 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
               {label}
             </button>
           ))}
-          <button type="button" className="pill" onClick={() => setMonths([...ALL_YEAR])}>
+          <button
+            type="button"
+            aria-pressed={months.length === 12}
+            className={`pill${months.length === 12 ? " on" : ""}`}
+            onClick={() => setMonths([...ALL_YEAR])}
+          >
             Toute l’année
           </button>
         </div>

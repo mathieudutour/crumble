@@ -4,15 +4,12 @@ import { EmptyState } from "../components/EmptyState";
 import { flyOut, SwipeCard } from "../components/SwipeCard";
 import { useUi } from "../components/UiProvider";
 import { plural } from "../lib/format";
-import { slotName } from "../lib/planning";
 import { useStore } from "../store/StoreProvider";
 import { counts, isReady, remainingIds, required } from "../store/selectors";
 
 /** Matches the fly-out transition so the deck updates once the card has left. */
 const FLY_OUT_MS = 300;
 
-const listing = (items: string[]) =>
-  items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} et ${items.at(-1)}`;
 
 export function SwipeView({ onPlan }: { onPlan: () => void }) {
   const { state, catalogue, dispatch, buildPlan } = useStore();
@@ -62,10 +59,8 @@ export function SwipeView({ onPlan }: { onPlan: () => void }) {
     need.lunches > have.lunches ? plural(need.lunches - have.lunches, "midi") : "",
   ].filter(Boolean);
 
-  const habits = state.settings.habits.flatMap((h) => {
-    const meal = catalogue.get(h.mealId);
-    return meal ? [`${meal.name} (${slotName(h.slot)})`] : [];
-  });
+  // The gesture hint is for a first visit; habits already show in the plan.
+  const firstVisit = !state.liked.length && !state.noped.length;
 
   return (
     <>
@@ -90,7 +85,7 @@ export function SwipeView({ onPlan }: { onPlan: () => void }) {
               );
             })
         ) : (
-          <EmptyState icon="🍽" title="Tu as tout vu !">
+          <EmptyState scene="deck-done" icon="🍽" title="Tu as tout vu !">
             <p className="note">
               {state.noped.length ? "Tu peux revoir les plats écartés ou créer ton planning." : "Crée ton planning."}
             </p>
@@ -147,10 +142,7 @@ export function SwipeView({ onPlan }: { onPlan: () => void }) {
           {ready ? "Créer mon planning ✨" : `Encore ${missing.join(" et ")} à choisir`}
         </button>
       )}
-      <p className="hint">
-        Glisse à droite pour garder, à gauche pour passer. Touche la carte pour voir la recette.
-        {habits.length > 0 && ` Déjà prévu : ${listing(habits)}.`}
-      </p>
+      {firstVisit && <p className="hint">Glisse à droite pour garder, à gauche pour passer. Touche la carte pour la recette.</p>}
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { DishThumb } from "../components/DishArt";
 import { useMemo, useState } from "react";
 import { Sharing } from "../components/Sharing";
 import { useUi } from "../components/UiProvider";
@@ -42,12 +43,56 @@ function DinersRow({ slot }: { slot: number }) {
   );
 }
 
+/** The week at a glance: who eats at home, meal by meal. */
+function DinersWeek() {
+  const { state } = useStore();
+  const cell = (slot: number) => {
+    const { adults, kids } = state.diners[slot]!;
+    if (!adults && !kids)
+      return (
+        <td key={slot} className="away">
+          dehors
+        </td>
+      );
+    return (
+      <td key={slot}>
+        {adults}
+        {kids > 0 && <span className="kids"> +{kids}</span>}
+      </td>
+    );
+  };
+  return (
+    <table className="diners-week">
+      <caption className="note">Adultes, + enfants</caption>
+      <thead>
+        <tr>
+          <th scope="col" aria-label="Repas" />
+          {DAYS.map((day) => (
+            <th scope="col" key={day} abbr={day}>
+              {day.slice(0, 3)}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {[false, true].map((dinner) => (
+          <tr key={String(dinner)}>
+            <th scope="row">{dinner ? "Soir" : "Midi"}</th>
+            {DAYS.map((_, d) => cell(slotIndex(d, dinner)))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function Habits() {
   const { state, catalogue, dispatch } = useStore();
   const habits = state.settings.habits;
   const freeSlots = Array.from({ length: SLOT_COUNT }, (_, s) => s).filter((s) => !habits.some((h) => h.slot === s));
   const [slot, setSlot] = useState(freeSlots[0] ?? 0);
   const [mealId, setMealId] = useState("pesto");
+  const [adding, setAdding] = useState(false);
   const setHabits = (next: typeof habits) =>
     dispatch({ type: "setSettings", settings: { habits: [...next].sort((a, b) => a.slot - b.slot) } });
   const choices = [...catalogue.all].sort(
@@ -60,9 +105,7 @@ function Habits() {
         const meal = catalogue.get(h.mealId);
         return (
           <div className="pick" key={h.slot}>
-            <span className="em" aria-hidden="true">
-              {meal?.emoji}
-            </span>
+            {meal && <DishThumb meal={meal} />}
             <span className="nm">
               {meal?.name}
               <br />
@@ -90,7 +133,12 @@ function Habits() {
         );
       })}
       {!habits.length && <p className="note">Aucune habitude : tout le planning est tiré au sort.</p>}
-      {freeSlots.length > 0 && (
+      {freeSlots.length > 0 && !adding && (
+        <button className="cta ghost" onClick={() => setAdding(true)}>
+          + Ajouter une habitude
+        </button>
+      )}
+      {freeSlots.length > 0 && adding && (
         <div className="habit-form">
           <select className="field" value={slot} onChange={(e) => setSlot(Number(e.target.value))} aria-label="Quand">
             {freeSlots.map((s) => (
@@ -111,6 +159,7 @@ function Habits() {
             onClick={() => {
               if (!freeSlots.includes(slot)) return;
               setHabits([...habits, { slot, mealId }]);
+              setAdding(false);
               setSlot(freeSlots.find((s) => s !== slot) ?? 0);
             }}
           >
@@ -195,6 +244,7 @@ export function HouseholdView({ onPlan, onSwipe }: { onPlan: () => void; onSwipe
   const { state, catalogue, dispatch, buildPlan } = useStore();
   const { toast } = useUi();
   const { diet, weeknightMinutes } = state.settings;
+  const [editingDiners, setEditingDiners] = useState(false);
   const plan = state.plans[state.week];
 
   return (
@@ -203,26 +253,39 @@ export function HouseholdView({ onPlan, onSwipe }: { onPlan: () => void; onSwipe
       <Sharing />
 
       <h2 className="section-title">Qui mange quand ?</h2>
-      <p className="note spaced-bottom">
-        Règle le nombre d’adultes et d’enfants à chaque repas. Mets 0 pour un repas à l’extérieur : il ne sera pas
-        prévu. Les quantités et les restes s’adaptent.
-      </p>
-      {DAYS.map((day, d) => (
-        <section className="day" key={day}>
-          <h4>{day}</h4>
-          <DinersRow slot={slotIndex(d, false)} />
-          <DinersRow slot={slotIndex(d, true)} />
-        </section>
-      ))}
-      <button
-        className="link-button"
-        onClick={() => {
-          dispatch({ type: "resetDiners" });
-          toast("Convives par défaut");
-        }}
-      >
-        Revenir aux convives par défaut
-      </button>
+      <DinersWeek />
+      {editingDiners ? (
+        <>
+          <p className="note spaced-bottom">
+            Mets 0 pour un repas à l’extérieur : il ne sera pas prévu. Le planning en cours s’adapte tout de suite.
+          </p>
+          {DAYS.map((day, d) => (
+            <section className="day" key={day}>
+              <h4>{day}</h4>
+              <DinersRow slot={slotIndex(d, false)} />
+              <DinersRow slot={slotIndex(d, true)} />
+            </section>
+          ))}
+          <div className="row">
+            <button
+              className="cta ghost"
+              onClick={() => {
+                dispatch({ type: "resetDiners" });
+                toast("Convives par défaut");
+              }}
+            >
+              Par défaut
+            </button>
+            <button className="cta" onClick={() => setEditingDiners(false)}>
+              Terminé
+            </button>
+          </div>
+        </>
+      ) : (
+        <button className="cta ghost" onClick={() => setEditingDiners(true)}>
+          Modifier
+        </button>
+      )}
 
       <h2 className="section-title">Habitudes</h2>
       <p className="note spaced-bottom">

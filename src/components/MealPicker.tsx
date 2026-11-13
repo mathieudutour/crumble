@@ -3,6 +3,7 @@ import type { Meal } from "../data/types";
 import { fitsSlot, isTooLong, slotName } from "../lib/planning";
 import { useStore } from "../store/StoreProvider";
 import { eatenLabel, isAvailable, recentMeals } from "../store/selectors";
+import { DishThumb } from "./DishArt";
 import { Sheet, SheetHeader } from "./Sheet";
 
 interface Props {
@@ -45,9 +46,7 @@ export function MealPicker({ slot, currentId, onPick, onClear, onClose }: Props)
     ].filter(Boolean);
     return (
       <button key={meal.id} className="pick choice" onClick={() => onPick(meal)}>
-        <span className="em" aria-hidden="true">
-          {meal.emoji}
-        </span>
+        <DishThumb meal={meal} />
         <span className="nm">
           {meal.name}
           <br />

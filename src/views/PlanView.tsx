@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { DishThumb } from "../components/DishArt";
 import { EmptyState } from "../components/EmptyState";
 import { MealPicker } from "../components/MealPicker";
+import { Sheet, SheetHeader } from "../components/Sheet";
 import { useUi } from "../components/UiProvider";
 import { dinersText } from "../lib/format";
 import { avoidedIn } from "../lib/avoid";
 import { canMove } from "../lib/planEdit";
-import { DAYS, hasLeftovers, isTooLong, slotIndex, type Plan } from "../lib/planning";
+import { DAYS, hasLeftovers, isTooLong, slotIndex, slotName, type Plan, type PlanSlot } from "../lib/planning";
 import { dayTitle, planText } from "../lib/shopping";
 import { addDays, mondayOf, todayIso, weekName, weekRange } from "../lib/week";
 import { useStore } from "../store/StoreProvider";
@@ -21,6 +23,53 @@ interface SlotRowProps {
   onMoveHere: (slot: number) => void;
 }
 
+/** What can be done with a planned meal, in one sheet rather than links on every row. */
+function SlotActions({
+  slot,
+  entry,
+  mealName,
+  onRecipe,
+  onChange,
+  onMove,
+  onLock,
+  onClear,
+  onClose,
+}: {
+  slot: number;
+  entry: PlanSlot;
+  mealName: string;
+  onRecipe: () => void;
+  onChange: () => void;
+  onMove: () => void;
+  onLock: () => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const cooking = entry.kind === "cook";
+  return (
+    <Sheet onClose={onClose} labelledBy="slot-actions-title">
+      <div className="in">
+        <SheetHeader id="slot-actions-title" title={mealName} onClose={onClose} />
+        <p className="note">{slotName(slot)[0]!.toUpperCase() + slotName(slot).slice(1)}</p>
+        <div className="action-list">
+          <button onClick={onRecipe}>📖 Voir la recette</button>
+          <button onClick={onChange}>🔄 Changer de plat</button>
+          {cooking && <button onClick={onMove}>↕️ Déplacer à un autre moment</button>}
+          {cooking && (
+            <button onClick={onLock}>
+              {entry.locked ? "🔓 Déverrouiller" : "🔒 Verrouiller"}
+              <span className="note">{entry.locked ? "Un nouveau tirage pourra le changer" : "Un nouveau tirage le gardera"}</span>
+            </button>
+          )}
+          <button className="danger" onClick={onClear}>
+            Ne rien prévoir
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
 function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }: SlotRowProps) {
   const { state, catalogue, dispatch } = useStore();
   const { openRecipe, openSheet } = useUi();
@@ -28,6 +77,7 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
   const when = slot % 2 ? "Soir" : "Midi";
   const meal = entry.kind === "cook" || entry.kind === "leftovers" ? catalogue.get(entry.mealId) : undefined;
   const isPast = addDays(week, Math.floor(slot / 2)) < todayIso();
+  const canEdit = editable && !isPast;
 
   const pick = () =>
     openSheet((close) => (
@@ -38,17 +88,47 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
           dispatch({ type: "placeMeal", week, slot, mealId: m.id });
           close();
         }}
-        onClear={
-          entry.kind === "cook" || entry.kind === "leftovers"
-            ? () => {
-                dispatch({ type: "clearSlot", week, slot });
-                close();
-              }
-            : undefined
-        }
         onClose={close}
       />
     ));
+
+  const showActions = () =>
+    meal &&
+    openSheet((close) => (
+      <SlotActions
+        slot={slot}
+        entry={entry}
+        mealName={meal.name}
+        onRecipe={() => openRecipe(meal.id, entry.kind === "cook" ? entry : undefined)}
+        onChange={pick}
+        onMove={() => {
+          close();
+          onMoveStart(slot);
+        }}
+        onLock={() => {
+          dispatch({ type: "setLock", week, slot, locked: entry.kind === "cook" && !entry.locked });
+          close();
+        }}
+        onClear={() => {
+          dispatch({ type: "clearSlot", week, slot });
+          close();
+        }}
+        onClose={close}
+      />
+    ));
+
+  const title = meal ? (
+    entry.kind === "leftovers" ? (
+      <>
+        <span className="left">Restes</span> · {meal.name}
+      </>
+    ) : (
+      <>
+        <span className={entry.kind === "cook" && entry.habit ? "fixed" : undefined}>{meal.name}</span>
+        {entry.kind === "cook" && entry.locked && <span aria-label=", verrouillé"> 🔒</span>}
+      </>
+    )
+  ) : null;
 
   // While moving a meal, every row is either the meal being moved, a place it can go, or neither.
   if (moving !== null) {
@@ -56,30 +136,28 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
     return (
       <div className={`meal${moving === slot ? " moving" : target ? "" : " dimmed"}`}>
         <div className="when">{when}</div>
-        <div className="meal-main">
-          <div className="what">
-            {meal ? (
-              `${entry.kind === "leftovers" ? "🔁 Restes · " : `${meal.emoji} `}${meal.name}`
-            ) : (
-              <span className="note">Libre</span>
+        <div className="meal-row static">
+          {meal ? <DishThumb meal={meal} /> : <span className="thumb empty" aria-hidden="true" />}
+          <span className="meal-main">
+            <span className="what">{title ?? <span className="note">{entry.kind === "none" ? "Personne à la maison" : "Libre"}</span>}</span>
+            {target && (
+              <button className="cta slim inline" onClick={() => onMoveHere(slot)}>
+                {entry.kind === "cook" ? "Échanger avec ce plat" : "Mettre ici"}
+              </button>
             )}
-          </div>
-          {target && (
-            <button className="cta slim inline" onClick={() => onMoveHere(slot)}>
-              {entry.kind === "cook" ? "Échanger avec ce plat" : "Mettre ici"}
-            </button>
-          )}
+          </span>
         </div>
       </div>
     );
   }
 
-  if (entry.kind === "none") {
+  if (entry.kind === "none" || (!meal && !canEdit)) {
     return (
       <div className="meal">
         <div className="when">{when}</div>
-        <div className="meal-main">
-          <div className="what note">🚫 Personne à la maison</div>
+        <div className="meal-row static">
+          <span className="thumb empty" aria-hidden="true" />
+          <span className="what note">{entry.kind === "none" ? "Personne à la maison" : "Libre"}</span>
         </div>
       </div>
     );
@@ -91,34 +169,26 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
     if (hasLeftovers(plan, slot)) sub.push("cuisiner aussi pour les restes");
   }
   const tooLong = entry.kind === "cook" && meal && isTooLong(meal, slot, state.settings.weeknightMinutes);
+  const avoided = meal ? avoidedIn(meal, state.settings.avoid) : [];
   const askRating = entry.kind === "cook" && meal && isPast && state.ratings[meal.id] === undefined;
+  const onTap = !meal ? pick : canEdit ? showActions : () => openRecipe(meal.id, entry.kind === "cook" ? entry : undefined);
 
   return (
     <div className="meal">
       <div className="when">{when}</div>
-      <div className="meal-main">
-        {meal ? (
-          <button className="what link" onClick={() => openRecipe(meal.id, entry.kind === "cook" ? entry : undefined)}>
-            {entry.kind === "leftovers" ? (
-              <>
-                <span className="left">🔁 Restes</span> · {meal.name}
-              </>
-            ) : (
-              <>
-                {meal.emoji}{" "}
-                <span className={entry.kind === "cook" && entry.habit ? "fixed" : undefined}>{meal.name}</span>
-                {entry.kind === "cook" && entry.locked && <span aria-label="verrouillé"> 🔒</span>}
-              </>
-            )}
-          </button>
-        ) : (
-          <div className="what note">Libre</div>
-        )}
-        <div className="sub">{sub.join(" · ")}</div>
-        {tooLong && <div className="sub alert">⚠ Long pour un soir de semaine</div>}
-        {meal && avoidedIn(meal, state.settings.avoid).length > 0 && (
-          <div className="sub alert">⚠ Contient {avoidedIn(meal, state.settings.avoid).join(", ").toLowerCase()}, que tu évites</div>
-        )}
+      <div className="meal-body">
+        <button className="meal-row" onClick={onTap} aria-haspopup="dialog">
+          {meal ? <DishThumb meal={meal} /> : <span className="thumb empty" aria-hidden="true">+</span>}
+          <span className="meal-main">
+            <span className="what">{title ?? <span className="accent">Choisir un plat</span>}</span>
+            {meal && <span className="sub">{sub.join(" · ")}</span>}
+            {tooLong && <span className="sub alert">⚠ Long pour un soir de semaine</span>}
+            {avoided.length > 0 && <span className="sub alert">⚠ Contient {avoided.join(", ").toLowerCase()}, que tu évites</span>}
+          </span>
+          <span className="chevron" aria-hidden="true">
+            ›
+          </span>
+        </button>
         {askRating && (
           <div className="slot-actions">
             <span className="note">C’était bon ?</span>
@@ -128,23 +198,6 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
             <button className="pill" onClick={() => dispatch({ type: "rate", id: meal.id, rating: -1 })}>
               😕 Bof
             </button>
-          </div>
-        )}
-        {editable && !isPast && (
-          <div className="slot-actions edit">
-            <button onClick={pick}>{meal ? "Changer" : "Choisir un plat"}</button>
-            {entry.kind === "cook" && (
-              <>
-                <button onClick={() => onMoveStart(slot)}>Déplacer</button>
-                <button
-                  aria-pressed={!!entry.locked}
-                  onClick={() => dispatch({ type: "setLock", week, slot, locked: !entry.locked })}
-                  title="Un plat verrouillé reste quand tu refais un tirage"
-                >
-                  {entry.locked ? "Déverrouiller" : "Verrouiller"}
-                </button>
-              </>
-            )}
           </div>
         )}
       </div>
@@ -220,7 +273,7 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
       <>
         {nav}
         {editable ? (
-          <EmptyState icon="🗓" title="Pas encore de planning" inline>
+          <EmptyState scene="empty-plan" icon="🗓" title="Pas encore de planning" inline>
             <p className="note">
               Choisis au moins {need.dinners} dîners et {need.lunches} midis de saison, puis crée ton planning.
             </p>
@@ -235,7 +288,7 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
             )}
           </EmptyState>
         ) : (
-          <EmptyState icon="🗓" title="Pas de planning cette semaine-là" inline />
+          <EmptyState scene="empty-plan" icon="🗓" title="Pas de planning cette semaine-là" inline />
         )}
       </>
     );
@@ -259,22 +312,13 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
           les plats verrouillés 🔒 restent.
         </div>
       )}
-      <div className="summary">
-        <div className="chip">
-          <b>{cooks}</b>
-          <br />
-          <span className="note">fois en cuisine</span>
-        </div>
-        <div className="chip">
-          <b>{leftovers}</b>
-          <br />
-          <span className="note">repas de restes</span>
-        </div>
-      </div>
+      <p className="note plan-summary">
+        {cooks} repas à cuisiner · {leftovers} de restes
+      </p>
       <div className="row spaced-bottom">
         {editable && (
           <button
-            className="cta"
+            className="cta ghost"
             onClick={() => {
               buildPlan();
               toast("Nouveau tirage");
@@ -331,7 +375,7 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
         les quantités suivent les convives (onglet « Foyer ») et les restes se gardent 3 jours au frigo.
       </p>
       {editable && (
-        <button className="cta ghost" onClick={onShop}>
+        <button className="cta" onClick={onShop}>
           Voir la liste de courses →
         </button>
       )}

@@ -1,17 +1,83 @@
 :root {
+  color-scheme: light dark;
   --bg: #fbf6ef;
   --ink: #2b2420;
-  --muted: #7a6e66;
+  --muted: #6e625a;
   --line: #eadfd2;
   --card: #fff;
-  --accent: #d9653b;
-  --green: #4f7a4a;
-  --nope: #b8483b;
   --soft: #f4ebe0;
+  /* Orange: --accent decorates; --accent-fill (buttons) and --accent-text (links) pass contrast for small text. */
+  --accent: #d9653b;
+  --accent-fill: #bc4d24;
+  --accent-text: #bc4d24;
+  --on-accent: #fff;
+  --green: #4f7a4a;
+  --green-ink: #466d42;
+  --green-soft: #e5f0e2;
+  --nope: #b8483b;
+  --amber: #e3a33b;
+  --tag-ink: #5b4f47;
+  --warm-soft: #fdf0e3;
+  --warm-line: #f3d6b8;
+  --love-soft: #fff1ea;
+  --recent-soft: #eee8f6;
+  --recent-ink: #6a5a8a;
+  --disabled-bg: #e6d9cb;
+  --disabled-ink: #8f8174;
+  --checkbox-line: #b9ab9e;
+  /* Dark-on-light surfaces that stay contrasted in both themes: toast, timers, move banner, selected pills. */
+  --inverse-bg: #2b2420;
+  --inverse-ink: #fff;
+  --glass: rgba(255, 255, 255, 0.85);
+  --scrim: rgba(40, 28, 20, 0.45);
+  --shadow-soft: rgba(0, 0, 0, 0.08);
+  --shadow-card: rgba(60, 40, 20, 0.12);
+  --shadow-round: rgba(60, 40, 20, 0.13);
+  --shadow-dish: rgba(60, 40, 20, 0.18);
+  --shadow-accent: rgba(188, 77, 36, 0.28);
+  /* Behind every dish, whatever its type: the illustrations bring the colour. */
+  --dish-bg: linear-gradient(160deg, #fdeee2, #f5d2b9);
   /* System fonts: nothing to download. New York on Apple devices, the platform serif elsewhere. */
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --serif: ui-serif, "New York", Georgia, "Noto Serif", serif;
-  color-scheme: light;
+}
+
+/* Evening cooking: a warm dark theme following the phone's setting. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1714;
+    --ink: #f2eae2;
+    --muted: #b3a69b;
+    --line: #3a312b;
+    --card: #27211d;
+    --soft: #332b26;
+    --accent: #e0714a;
+    --accent-fill: #bc4d24;
+    --accent-text: #f29a74;
+    --green: #4f7a4a;
+    --green-ink: #9cc796;
+    --green-soft: #2c3a2a;
+    --nope: #e88275;
+    --tag-ink: #d9cdc2;
+    --warm-soft: #3a2a20;
+    --warm-line: #5a4030;
+    --love-soft: #4a2c20;
+    --recent-soft: #332c40;
+    --recent-ink: #c9bce6;
+    --disabled-bg: #3a312b;
+    --disabled-ink: #8a7d72;
+    --checkbox-line: #6b5e54;
+    --inverse-bg: #f2eae2;
+    --inverse-ink: #1c1714;
+    --glass: rgba(39, 33, 29, 0.85);
+    --scrim: rgba(0, 0, 0, 0.6);
+    --shadow-soft: rgba(0, 0, 0, 0.4);
+    --shadow-card: rgba(0, 0, 0, 0.4);
+    --shadow-round: rgba(0, 0, 0, 0.4);
+    --shadow-dish: rgba(0, 0, 0, 0.35);
+    --shadow-accent: rgba(0, 0, 0, 0.35);
+    --dish-bg: linear-gradient(160deg, #3b2c24, #4d3428);
+  }
 }
 
 * {
@@ -114,12 +180,16 @@ h2 {
   text-align: center;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tabs a.on {
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px var(--shadow-soft);
 }
 
 /* Progress chips */
@@ -132,7 +202,7 @@ h2 {
 
 .chip {
   flex: 1;
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 8px 10px;
@@ -168,7 +238,8 @@ h2 {
 .deck {
   position: relative;
   flex: 1;
-  min-height: 400px;
+  /* Shrinks on small phones so the like buttons and the main button stay on screen. */
+  min-height: 300px;
   margin-bottom: 14px;
 }
 
@@ -177,7 +248,7 @@ h2 {
   inset: 0;
   background: var(--card);
   border-radius: 24px;
-  box-shadow: 0 10px 30px rgba(60, 40, 20, 0.12);
+  box-shadow: 0 10px 30px var(--shadow-card);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -189,6 +260,7 @@ h2 {
 }
 
 .card .pic {
+  background: var(--dish-bg);
   flex: 1.3;
   display: flex;
   align-items: center;
@@ -212,7 +284,7 @@ h2 {
   inset: 6%;
   height: 88%;
   width: 88%;
-  filter: drop-shadow(0 8px 14px rgba(60, 40, 20, 0.18));
+  filter: drop-shadow(0 8px 14px var(--shadow-dish));
 }
 
 .sheet .top .dish-art {
@@ -243,13 +315,13 @@ h2 {
   padding: 4px 9px;
   border-radius: 999px;
   background: var(--soft);
-  color: #5b4f47;
+  color: var(--tag-ink);
   font-weight: 500;
 }
 
 .tag.batch {
-  background: #e5f0e2;
-  color: var(--green);
+  background: var(--green-soft);
+  color: var(--green-ink);
 }
 
 .ing {
@@ -269,12 +341,12 @@ h2 {
   letter-spacing: 0.05em;
   opacity: 0;
   font-family: var(--serif);
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--glass);
 }
 
 .stamp.like {
   left: 20px;
-  color: var(--green);
+  color: var(--green-ink);
   transform: rotate(-12deg);
 }
 
@@ -295,8 +367,8 @@ h2 {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 4px 14px rgba(60, 40, 20, 0.13);
+  background: var(--card);
+  box-shadow: 0 4px 14px var(--shadow-round);
   font-size: 28px;
   display: flex;
   align-items: center;
@@ -323,7 +395,7 @@ h2 {
 }
 
 .round.yes {
-  color: var(--green);
+  color: var(--green-ink);
 }
 
 /* Buttons */
@@ -333,24 +405,24 @@ h2 {
   width: 100%;
   padding: 14px;
   border-radius: 16px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-fill);
+  color: var(--on-accent);
   font-weight: 600;
   font-size: 15px;
   margin-top: 14px;
-  box-shadow: 0 4px 14px rgba(217, 101, 59, 0.3);
+  box-shadow: 0 4px 14px var(--shadow-accent);
 }
 
 .cta.ghost {
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line);
   box-shadow: none;
 }
 
 .cta:disabled {
-  background: #e6d9cb;
-  color: #9c8d80;
+  background: var(--disabled-bg);
+  color: var(--disabled-ink);
   box-shadow: none;
 }
 
@@ -401,6 +473,13 @@ h2 {
   min-height: 300px;
 }
 
+.empty .scene {
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  margin-bottom: 6px;
+}
+
 .empty .big {
   font-size: 60px;
   margin-bottom: 10px;
@@ -409,7 +488,7 @@ h2 {
 /* Planning */
 
 .day {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 12px 14px;
@@ -426,7 +505,7 @@ h2 {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  padding: 6px 0;
+  padding: 4px 0;
   width: 100%;
   text-align: left;
 }
@@ -438,12 +517,102 @@ h2 {
 .meal .when {
   width: 42px;
   flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 19px;
   font-size: 11.5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
   padding-top: 3px;
   font-weight: 600;
+}
+
+.meal-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The whole meal is one touch target: it opens the meal's actions (or the picker, for a free slot). */
+.meal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 0;
+  text-align: left;
+}
+
+.meal-row.static {
+  flex: 1;
+  min-width: 0;
+}
+
+.meal-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.chevron {
+  color: var(--muted);
+  font-size: 20px;
+  padding: 0 2px;
+}
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--dish-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+}
+
+.thumb.empty {
+  background: var(--soft);
+  color: var(--accent-text);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.plan-summary {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.action-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 52px;
+  padding: 8px 0;
+  font-size: 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.action-list button.danger {
+  color: var(--nope);
+  border-bottom: 0;
 }
 
 .meal .what {
@@ -458,31 +627,13 @@ h2 {
 }
 
 .left {
-  color: var(--green);
+  color: var(--green-ink);
   font-weight: 600;
 }
 
 .fixed {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
-}
-
-.summary {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.summary .chip {
-  text-align: center;
-}
-
-.rlink {
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 600;
-  margin-top: 3px;
-  display: inline-block;
 }
 
 .note {
@@ -500,8 +651,8 @@ h2 {
 }
 
 .warn {
-  background: #fdf0e3;
-  border: 1px solid #f3d6b8;
+  background: var(--warm-soft);
+  border: 1px solid var(--warm-line);
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
@@ -523,7 +674,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 4px 6px 4px 12px;
@@ -532,6 +683,7 @@ h2 {
 }
 
 .item-check {
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -542,11 +694,11 @@ h2 {
 }
 
 .item .home {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  font-size: 15px;
-  opacity: 0.55;
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
   flex-shrink: 0;
 }
 
@@ -559,19 +711,20 @@ h2 {
   display: block;
   width: 100%;
   text-align: left;
+  min-height: 44px;
 }
 
 .item .box {
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  border: 2px solid #cdbfb0;
+  border: 2px solid var(--checkbox-line);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .item.done .box {
@@ -603,7 +756,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 8px 12px;
@@ -611,8 +764,14 @@ h2 {
   font-size: 14px;
 }
 
-.pick .em {
-  font-size: 22px;
+.pick-open {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  text-align: left;
 }
 
 .pick .nm {
@@ -620,7 +779,8 @@ h2 {
   text-align: left;
 }
 
-.pick .toggle {
+.toggle {
+  position: relative;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -630,7 +790,7 @@ h2 {
 }
 
 .accent {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* Diners */
@@ -665,12 +825,13 @@ h2 {
 }
 
 .step button {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--card);
   font-size: 16px;
   font-weight: 600;
+  position: relative;
 }
 
 .step span {
@@ -690,7 +851,7 @@ h2 {
 .sheet-bg {
   position: fixed;
   inset: 0;
-  background: rgba(40, 28, 20, 0.45);
+  background: var(--scrim);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -721,6 +882,7 @@ h2 {
 }
 
 .sheet .top {
+  background: var(--dish-bg);
   font-size: 64px;
   text-align: center;
   padding: 18px 0 10px;
@@ -729,12 +891,14 @@ h2 {
 
 .sheet .x {
   position: absolute;
+  min-width: 40px;
+  min-height: 40px;
   right: 12px;
   top: 12px;
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--glass);
   font-size: 16px;
 }
 
@@ -794,8 +958,8 @@ h2 {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-fill);
+  color: var(--on-accent);
   font-size: 12px;
   font-weight: 600;
   display: flex;
@@ -812,8 +976,8 @@ h2 {
   max-width: calc(100vw - 32px);
   bottom: 24px;
   transform: translateX(-50%) translateY(20px);
-  background: var(--ink);
-  color: #fff;
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
   padding: 10px 16px;
   border-radius: 999px;
   font-size: 13px;
@@ -839,13 +1003,26 @@ h2 {
   background: var(--soft);
   font-size: 12.5px;
   font-weight: 500;
-  color: #5b4f47;
+  color: var(--tag-ink);
   white-space: nowrap;
+  min-height: 36px;
+  position: relative;
+}
+
+/* Small controls get an invisible margin that brings their touch area to about 44 px. */
+.pill::after,
+.step button::after,
+.sheet .x::after,
+.cook-head .x::after,
+.toggle::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
 }
 
 .pill.on {
-  background: var(--ink);
-  color: #fff;
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
 }
 
 .feedback {
@@ -862,25 +1039,28 @@ h2 {
   gap: 2px;
 }
 
+
 .segmented button {
   flex: 1;
   padding: 8px 4px;
   border-radius: 9px;
   font-size: 13px;
   color: var(--muted);
+  min-height: 44px;
 }
 
 .segmented button.on {
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px var(--shadow-soft);
 }
 
 .cta.slim {
   padding: 9px 14px;
   font-size: 14px;
   margin-top: 8px;
+  min-height: 44px;
 }
 
 .cta.cook {
@@ -893,28 +1073,30 @@ h2 {
 }
 
 .link-button {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 13px;
   font-weight: 600;
   padding: 8px 0;
+  min-height: 44px;
 }
 
 .tag.love {
-  background: #fde7dc;
-  color: var(--accent);
+  background: var(--love-soft);
+  color: var(--accent-text);
 }
 
 .tag.recent {
-  background: #eee8f6;
-  color: #6a5a8a;
+  background: var(--recent-soft);
+  color: var(--recent-ink);
 }
 
 .field {
   width: 100%;
+  min-height: 44px;
   font: inherit;
   font-size: 15px;
   color: var(--ink);
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 9px 11px;
@@ -994,18 +1176,6 @@ textarea.field {
   text-align: left;
 }
 
-.slot-actions.edit {
-  gap: 16px;
-  margin-top: 4px;
-}
-
-.slot-actions.edit button {
-  color: var(--accent);
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 4px 0;
-}
-
 .alert,
 .sub.alert {
   color: var(--nope);
@@ -1020,7 +1190,7 @@ textarea.field {
 }
 
 .meal.moving {
-  background: #fdf0e3;
+  background: var(--warm-soft);
   border-radius: 10px;
   margin: 0 -6px;
   padding-left: 6px;
@@ -1039,8 +1209,8 @@ textarea.field {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: var(--ink);
-  color: #fff;
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
   border-radius: 14px;
   padding: 10px 12px;
   margin-bottom: 10px;
@@ -1060,8 +1230,8 @@ textarea.field {
   font-family: var(--sans);
   font-size: 11px;
   font-weight: 600;
-  color: #fff;
-  background: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-fill);
   border-radius: 999px;
   padding: 2px 8px;
   vertical-align: 2px;
@@ -1083,7 +1253,7 @@ textarea.field {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #b9ab9e;
+  background: var(--checkbox-line);
   flex-shrink: 0;
 }
 
@@ -1096,7 +1266,7 @@ textarea.field {
 .sync-status.joining i,
 .sync-badge.connecting i,
 .sync-badge.joining i {
-  background: #e3a33b;
+  background: var(--amber);
 }
 
 .sync-badge {
@@ -1117,7 +1287,7 @@ textarea.field {
   display: flex;
   gap: 14px;
   align-items: center;
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 12px;
@@ -1145,8 +1315,8 @@ textarea.field {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fdf0e3;
-  border: 1px solid #f3d6b8;
+  background: var(--warm-soft);
+  border: 1px solid var(--warm-line);
   border-radius: 12px;
   padding: 10px 12px;
   margin-bottom: 12px;
@@ -1166,6 +1336,57 @@ textarea.field {
 
 .install-steps li + li {
   margin-top: 6px;
+}
+
+/* Who eats when, at a glance */
+
+.diners-week {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 3px;
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diners-week caption {
+  caption-side: bottom;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.diners-week th {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.diners-week th[scope="row"] {
+  text-align: left;
+  width: 42px;
+}
+
+.diners-week td {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  padding: 7px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.diners-week td .kids {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.diners-week td.away {
+  background: transparent;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
 }
 
 /* Household */
@@ -1194,11 +1415,11 @@ textarea.field {
 }
 
 .emoji {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   font-size: 20px;
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
 }
 
@@ -1229,6 +1450,12 @@ textarea.field {
   accent-color: var(--green);
 }
 
+.months .pill.on {
+  background: var(--love-soft);
+  color: var(--accent-text);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
 .months {
   display: flex;
   flex-wrap: wrap;
@@ -1254,7 +1481,7 @@ textarea.field {
 }
 
 .ingredient-row .remove {
-  width: 32px;
+  width: 44px;
   flex-shrink: 0;
   color: var(--muted);
 }
@@ -1286,8 +1513,9 @@ textarea.field {
 }
 
 .cook-head .x {
-  width: 36px;
-  height: 36px;
+  position: relative;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--soft);
   flex-shrink: 0;
@@ -1317,11 +1545,31 @@ textarea.field {
 }
 
 .cook-step {
-  flex: 1;
+  flex: 0 1 auto;
   overflow: auto;
   font-size: 24px;
   line-height: 1.5;
   padding: 28px 0 12px;
+}
+
+.cook-art {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 16px;
+}
+
+.cook-art .dish-art {
+  max-height: min(100%, 300px);
+  height: auto;
+  max-width: 80%;
+  filter: drop-shadow(0 8px 14px var(--shadow-dish));
+}
+
+.cook-art > span {
+  font-size: 96px;
 }
 
 .cook-ingredients {
@@ -1346,15 +1594,15 @@ textarea.field {
 
 .scaled {
   font-weight: 600;
-  color: var(--green);
+  color: var(--green-ink);
 }
 
 .timer-chip {
   display: inline;
   font-size: inherit;
   font-weight: 600;
-  color: var(--accent);
-  background: #fde7dc;
+  color: var(--accent-text);
+  background: var(--love-soft);
   border-radius: 8px;
   padding: 0 6px;
 }
@@ -1415,13 +1663,13 @@ body:has(.timers.floating) .sheet {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--ink);
-  color: #fff;
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
   border-radius: 14px;
   padding: 10px 14px;
   font-size: 13px;
   text-align: left;
-  box-shadow: 0 6px 18px rgba(40, 28, 20, 0.25);
+  box-shadow: 0 6px 18px var(--shadow-round);
 }
 
 .timer .time {
@@ -1441,7 +1689,7 @@ body:has(.timers.floating) .sheet {
 }
 
 .timer.rung {
-  background: var(--accent);
+  background: var(--accent-fill);
   animation: pulse 1s ease-in-out infinite;
 }
 

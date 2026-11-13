@@ -1,3 +1,4 @@
+import { DishThumb } from "../components/DishArt";
 import { useState } from "react";
 import { Counts } from "../components/Counts";
 import { MealForm } from "../components/MealForm";
@@ -15,31 +16,21 @@ function MealPick({ id, action }: { id: string; action: "unlike" | "like" | "edi
   const badges = [state.ratings[id] === 1 ? "😋" : "", state.kidsLike[id] ? "🧒" : ""].join("");
   return (
     <div className="pick">
-      <span className="em" aria-hidden="true">
-        {meal.emoji}
-      </span>
-      <button className="nm" onClick={() => openRecipe(id)}>
-        {meal.name} {badges}
-        <br />
-        <span className="note">
-          {typeLabel(meal)} · <span className="accent">recette</span>
+      <button className="pick-open" onClick={() => openRecipe(id)}>
+        <DishThumb meal={meal} />
+        <span className="nm">
+          {meal.name} {badges}
+          <br />
+          <span className="note">{typeLabel(meal)}</span>
         </span>
       </button>
       {action === "edit" ? (
-        <button
-          className="toggle"
-          onClick={() => openSheet((close) => <MealForm meal={meal} onClose={close} />)}
-          aria-label="Modifier"
-        >
-          ✏️
+        <button className="pill" onClick={() => openSheet((close) => <MealForm meal={meal} onClose={close} />)}>
+          Modifier
         </button>
       ) : (
-        <button
-          className="toggle"
-          onClick={() => dispatch({ type: action, id })}
-          aria-label={action === "unlike" ? "Écarter" : "Garder"}
-        >
-          {action === "unlike" ? "✕" : "♥"}
+        <button className="pill" onClick={() => dispatch({ type: action, id })}>
+          {action === "unlike" ? "Écarter" : "♥ Garder"}
         </button>
       )}
     </div>

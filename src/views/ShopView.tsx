@@ -22,7 +22,7 @@ export function ShopView() {
     return (
       <>
         {heading}
-        <EmptyState icon="🛒" title="La liste arrive avec le planning" inline>
+        <EmptyState scene="empty-list" icon="🛒" title="La liste arrive avec le planning" inline>
           <p className="note">Crée d’abord ton planning.</p>
         </EmptyState>
       </>
@@ -49,7 +49,8 @@ export function ShopView() {
       {toBuy.map(({ aisle, items }) => (
         <section key={aisle}>
           <h3 className="aisle">{AISLE_NAMES[aisle]}</h3>
-          {items.map((item) => {
+          {/* Ticked items sink to the bottom of their aisle, so what's left to buy stays together. */}
+          {[...items.filter((i) => !plan.checked[i.key]), ...items.filter((i) => plan.checked[i.key])].map((item) => {
             const done = !!plan.checked[item.key];
             return (
               <div key={item.key} className={`item${done ? " done" : ""}`}>
@@ -68,10 +69,9 @@ export function ShopView() {
                 <button
                   className="home"
                   onClick={() => togglePantry(item.name, true)}
-                  aria-label={`${item.name} : j’en ai toujours`}
-                  title="J’en ai toujours"
+                  aria-label={`${item.name} : j’en ai toujours à la maison`}
                 >
-                  🏠
+                  J’en ai
                 </button>
               </div>
             );
@@ -96,7 +96,7 @@ export function ShopView() {
         </section>
       )}
       <p className="note spaced">
-        Touche 🏠 pour ce que tu as toujours chez toi : ça ne revient plus dans la liste. À avoir aussi : sel, poivre,
+        « J’en ai » retire de la liste ce que tu as toujours chez toi, cette semaine et les suivantes. À avoir aussi : sel, poivre,
         huile d’olive, moutarde, miel, sucre, cannelle, muscade, ail.
       </p>
     </>
