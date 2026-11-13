@@ -17,9 +17,10 @@ import {
   type Envelope,
   type ServerMessage,
 } from "../shared/sync";
+import { isSwipe, popUndo, type Swipe } from "./swipes";
 
 /** What the app shows: the household, plus this phone's swipe history for undo. */
-export type AppState = Household & { swipes: string[] };
+export type AppState = Household & { swipes: Swipe[] };
 
 /** `undo` only exists on this phone: it undoes this phone's last swipe, never the other person's. */
 export type Action = HouseholdAction | { type: "undo" };
@@ -40,7 +41,7 @@ export type SyncStatus =
 
 interface Persisted {
   household: Household;
-  swipes: string[];
+  swipes: Swipe[];
   /** Only while in a shared household. `household` is then the last state the server confirmed. */
   sync?: { key: string; version: number; pending: Envelope[]; joined: boolean };
 }
@@ -63,7 +64,7 @@ function load(): Persisted {
       const sync = stored.sync && typeof stored.sync.key === "string" ? stored.sync : undefined;
       return {
         household: normalizeHousehold(stored.household, defaultWeek()),
-        swipes: Array.isArray(stored.swipes) ? stored.swipes.filter((x: unknown) => typeof x === "string") : [],
+        swipes: Array.isArray(stored.swipes) ? stored.swipes.filter(isSwipe) : [],
         sync: sync && {
           key: sync.key,
           version: Number.isInteger(sync.version) ? sync.version : -1,
@@ -86,7 +87,7 @@ export class AppStore {
   private sync: ClientSync;
   private key: string | null;
   private joined: boolean;
-  private swipes: string[];
+  private swipes: Swipe[];
   private connection: Connection = "offline";
   private socket: WebSocket | null = null;
   private attempts = 0;
@@ -131,19 +132,15 @@ export class AppStore {
   dispatch = (action: Action) => {
     let shared: HouseholdAction | undefined;
     if (action.type === "undo") {
-      // Skip swipes the other person already changed.
-      const { liked, noped } = this.view;
-      let id: string | undefined;
-      do id = this.swipes.pop();
-      while (id && !liked.includes(id) && !noped.includes(id));
-      this.swipes = [...this.swipes];
-      shared = id ? { type: "unswipe", id } : undefined;
+      const { swipes, undo } = popUndo(this.swipes, this.view);
+      this.swipes = swipes;
+      shared = undo && { type: "unswipe", id: undo.id };
     } else {
       shared = action;
-      if (action.type === "swipe") this.swipes = [...this.swipes, action.id];
+      if (action.type === "swipe") this.swipes = [...this.swipes, { id: action.id, liked: action.liked }];
       if (action.type === "reviewNoped" || action.type === "resetChoices") this.swipes = [];
       if (action.type === "like" || action.type === "unlike")
-        this.swipes = this.swipes.filter((id) => id !== action.id);
+        this.swipes = this.swipes.filter((swipe) => swipe.id !== action.id);
     }
     if (shared) this.apply(shared);
     else this.update();
