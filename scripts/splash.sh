@@ -31,14 +31,14 @@ splash() { # width height ratio orientation
   size=$(( short * 30 / 100 )); [ "$size" -gt 128 ] && size=128
   for theme in light dark; do
     bg=$LIGHT; [ "$theme" = dark ] && bg=$DARK
-    file="public/splash/${w}x${h}@${r}-${theme}.$FORMAT"
+    file="public/splash/${w}x${h}-${r}x-${theme}.$FORMAT"
     # Full-colour PNGs would weigh about 200 KB each.
     out="PNG8:$file" && opts="-dither None -colors 256"
     [ "$FORMAT" = jpg ] && out=$file && opts="-quality 90"
     magick -size "$((w * r))x$((h * r))" "xc:$bg" \( "$rounded" -resize "$((size * r))x$((size * r))" \) \
       -gravity center -geometry "+0-$((h * r / 20))" -composite -strip $opts "$out"
     dw=$w dh=$h; [ "$o" = landscape ] && dw=$h dh=$w
-    echo "    <link rel=\"apple-touch-startup-image\" media=\"(device-width: ${dw}px) and (device-height: ${dh}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: ${o}) and (prefers-color-scheme: ${theme})\" href=\"/splash/${w}x${h}@${r}-${theme}.$FORMAT\" />" >>"$links"
+    echo "    <link rel=\"apple-touch-startup-image\" media=\"(device-width: ${dw}px) and (device-height: ${dh}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: ${o}) and (prefers-color-scheme: ${theme})\" href=\"/splash/${w}x${h}-${r}x-${theme}.$FORMAT\" />" >>"$links"
   done
 }
 
