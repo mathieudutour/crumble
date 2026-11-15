@@ -43,6 +43,8 @@ npm run build      # typecheck + static build in dist/
 npm run preview    # serve the build locally, Worker included
 ```
 
+After changing the app icon or the background colours, run `sh scripts/splash.sh` (ImageMagick 7) to redraw the iPhone and iPad launch screens in `public/splash/` and their tags in `index.html`.
+
 ## Deploy
 
 The app and its API are one Cloudflare Worker (`wrangler.jsonc`): the Worker serves the built app as static assets and handles `/api/*`, and each shared household is a SQLite-backed Durable Object.
