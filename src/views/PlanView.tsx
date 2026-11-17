@@ -3,11 +3,20 @@ import { DishThumb } from "../components/DishArt";
 import { EmptyState } from "../components/EmptyState";
 import { MealPicker } from "../components/MealPicker";
 import { Sheet, SheetHeader } from "../components/Sheet";
+import { SwipeRow } from "../components/SwipeRow";
 import { useUi } from "../components/UiProvider";
 import { dinersText } from "../lib/format";
 import { avoidedIn } from "../lib/avoid";
 import { canMove } from "../lib/planEdit";
-import { DAYS, hasLeftovers, isTooLong, slotIndex, slotName, type Plan, type PlanSlot } from "../lib/planning";
+import {
+  DAYS,
+  hasLeftovers,
+  isTooLong,
+  slotIndex,
+  slotName,
+  type Plan,
+  type PlanSlot,
+} from "../lib/planning";
 import { dayTitle, planText } from "../lib/shopping";
 import { addDays, mondayOf, todayIso, weekName, weekRange } from "../lib/week";
 import { useStore } from "../store/StoreProvider";
@@ -58,7 +67,11 @@ function SlotActions({
           {cooking && (
             <button onClick={onLock}>
               {entry.locked ? "🔓 Déverrouiller" : "🔒 Verrouiller"}
-              <span className="note">{entry.locked ? "Un nouveau tirage pourra le changer" : "Un nouveau tirage le gardera"}</span>
+              <span className="note">
+                {entry.locked
+                  ? "Un nouveau tirage pourra le changer"
+                  : "Un nouveau tirage le gardera"}
+              </span>
             </button>
           )}
           <button className="danger" onClick={onClear}>
@@ -72,10 +85,11 @@ function SlotActions({
 
 function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }: SlotRowProps) {
   const { state, catalogue, dispatch } = useStore();
-  const { openRecipe, openSheet } = useUi();
+  const { openRecipe, openSheet, toast } = useUi();
   const entry = plan[slot]!;
   const when = slot % 2 ? "Soir" : "Midi";
-  const meal = entry.kind === "cook" || entry.kind === "leftovers" ? catalogue.get(entry.mealId) : undefined;
+  const meal =
+    entry.kind === "cook" || entry.kind === "leftovers" ? catalogue.get(entry.mealId) : undefined;
   const isPast = addDays(week, Math.floor(slot / 2)) < todayIso();
   const canEdit = editable && !isPast;
 
@@ -124,7 +138,9 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
       </>
     ) : (
       <>
-        <span className={entry.kind === "cook" && entry.habit ? "fixed" : undefined}>{meal.name}</span>
+        <span className={entry.kind === "cook" && entry.habit ? "fixed" : undefined}>
+          {meal.name}
+        </span>
         {entry.kind === "cook" && entry.locked && <span aria-label=", verrouillé"> 🔒</span>}
       </>
     )
@@ -139,7 +155,13 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
         <div className="meal-row static">
           {meal ? <DishThumb meal={meal} /> : <span className="thumb empty" aria-hidden="true" />}
           <span className="meal-main">
-            <span className="what">{title ?? <span className="note">{entry.kind === "none" ? "Personne à la maison" : "Libre"}</span>}</span>
+            <span className="what">
+              {title ?? (
+                <span className="note">
+                  {entry.kind === "none" ? "Personne à la maison" : "Libre"}
+                </span>
+              )}
+            </span>
             {target && (
               <button className="cta slim inline" onClick={() => onMoveHere(slot)}>
                 {entry.kind === "cook" ? "Échanger avec ce plat" : "Mettre ici"}
@@ -157,7 +179,9 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
         <div className="when">{when}</div>
         <div className="meal-row static">
           <span className="thumb empty" aria-hidden="true" />
-          <span className="what note">{entry.kind === "none" ? "Personne à la maison" : "Libre"}</span>
+          <span className="what note">
+            {entry.kind === "none" ? "Personne à la maison" : "Libre"}
+          </span>
         </div>
       </div>
     );
@@ -168,34 +192,74 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
     sub.push(`⏱ ${meal.time}`);
     if (hasLeftovers(plan, slot)) sub.push("cuisiner aussi pour les restes");
   }
-  const tooLong = entry.kind === "cook" && meal && isTooLong(meal, slot, state.settings.weeknightMinutes);
+  const tooLong =
+    entry.kind === "cook" && meal && isTooLong(meal, slot, state.settings.weeknightMinutes);
   const avoided = meal ? avoidedIn(meal, state.settings.avoid) : [];
   const askRating = entry.kind === "cook" && meal && isPast && state.ratings[meal.id] === undefined;
-  const onTap = !meal ? pick : canEdit ? showActions : () => openRecipe(meal.id, entry.kind === "cook" ? entry : undefined);
+  const onTap = !meal
+    ? pick
+    : canEdit
+      ? showActions
+      : () => openRecipe(meal.id, entry.kind === "cook" ? entry : undefined);
+
+  const mealButton = (
+    <button className="meal-row" onClick={onTap} aria-haspopup="dialog">
+      {meal ? (
+        <DishThumb meal={meal} />
+      ) : (
+        <span className="thumb empty" aria-hidden="true">
+          +
+        </span>
+      )}
+      <span className="meal-main">
+        <span className="what">{title ?? <span className="accent">Choisir un plat</span>}</span>
+        {meal && <span className="sub">{sub.join(" · ")}</span>}
+        {tooLong && <span className="sub alert">⚠ Long pour un soir de semaine</span>}
+        {avoided.length > 0 && (
+          <span className="sub alert">
+            ⚠ Contient {avoided.join(", ").toLowerCase()}, que tu évites
+          </span>
+        )}
+      </span>
+      <span className="chevron" aria-hidden="true">
+        ›
+      </span>
+    </button>
+  );
+  // A dish planned to cook can be changed or taken off with a swipe, as well as from its sheet.
+  const swipeable = canEdit && entry.kind === "cook" && !!meal;
+  const swipeActions = [
+    { label: "Changer", tone: "neutral" as const, run: pick },
+    {
+      label: "Retirer",
+      tone: "danger" as const,
+      run: () => {
+        dispatch({ type: "clearSlot", week, slot });
+        toast(`Retiré : ${meal!.name}`, () =>
+          dispatch({ type: "placeMeal", week, slot, mealId: meal!.id }),
+        );
+      },
+    },
+  ];
 
   return (
     <div className="meal">
       <div className="when">{when}</div>
       <div className="meal-body">
-        <button className="meal-row" onClick={onTap} aria-haspopup="dialog">
-          {meal ? <DishThumb meal={meal} /> : <span className="thumb empty" aria-hidden="true">+</span>}
-          <span className="meal-main">
-            <span className="what">{title ?? <span className="accent">Choisir un plat</span>}</span>
-            {meal && <span className="sub">{sub.join(" · ")}</span>}
-            {tooLong && <span className="sub alert">⚠ Long pour un soir de semaine</span>}
-            {avoided.length > 0 && <span className="sub alert">⚠ Contient {avoided.join(", ").toLowerCase()}, que tu évites</span>}
-          </span>
-          <span className="chevron" aria-hidden="true">
-            ›
-          </span>
-        </button>
+        {swipeable ? <SwipeRow actions={swipeActions}>{mealButton}</SwipeRow> : mealButton}
         {askRating && (
           <div className="slot-actions">
             <span className="note">C’était bon ?</span>
-            <button className="pill" onClick={() => dispatch({ type: "rate", id: meal.id, rating: 1 })}>
+            <button
+              className="pill"
+              onClick={() => dispatch({ type: "rate", id: meal.id, rating: 1 })}
+            >
               😋 On adore
             </button>
-            <button className="pill" onClick={() => dispatch({ type: "rate", id: meal.id, rating: -1 })}>
+            <button
+              className="pill"
+              onClick={() => dispatch({ type: "rate", id: meal.id, rating: -1 })}
+            >
               😕 Bof
             </button>
           </div>
@@ -275,7 +339,8 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
         {editable ? (
           <EmptyState scene="empty-plan" icon="🗓" title="Pas encore de planning" inline>
             <p className="note">
-              Choisis au moins {need.dinners} dîners et {need.lunches} midis de saison, puis crée ton planning.
+              Choisis au moins {need.dinners} dîners et {need.lunches} midis de saison, puis crée
+              ton planning.
             </p>
             {isReady(state, catalogue) ? (
               <button className="cta inline" onClick={buildPlan}>
@@ -308,8 +373,8 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
       {nav}
       {editable && plan.key !== planKey(state, catalogue) && (
         <div className="warn">
-          Tes plats, les convives ou les réglages ont changé depuis ce tirage. Refais un tirage pour en tenir compte :
-          les plats verrouillés 🔒 restent.
+          Tes plats, les convives ou les réglages ont changé depuis ce tirage. Refais un tirage pour
+          en tenir compte : les plats verrouillés 🔒 restent.
         </div>
       )}
       <p className="note plan-summary">
@@ -344,7 +409,10 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
       {DAYS.map((_, d) => {
         const date = addDays(week, d);
         return (
-          <section className={`day${date === today ? " today" : ""}${date < today ? " past" : ""}`} key={d}>
+          <section
+            className={`day${date === today ? " today" : ""}${date < today ? " past" : ""}`}
+            key={d}
+          >
             <h4>
               {dayTitle(week, d)}
               {date === today && <span className="today-badge">Aujourd’hui</span>}
@@ -371,8 +439,9 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
         );
       })}
       <p className="note spaced">
-        Les plats que tu choisis ou déplaces sont verrouillés 🔒 : un nouveau tirage les garde. Une quiche fait 6 parts,
-        les quantités suivent les convives (onglet « Foyer ») et les restes se gardent 3 jours au frigo.
+        Les plats que tu choisis ou déplaces sont verrouillés 🔒 : un nouveau tirage les garde. Une
+        quiche fait 6 parts, les quantités suivent les convives (onglet « Foyer ») et les restes se
+        gardent 3 jours au frigo.
       </p>
       {editable && (
         <button className="cta" onClick={onShop}>

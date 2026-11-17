@@ -41,6 +41,7 @@ npm run dev        # http://localhost:5173, with the Worker and Durable Objects 
 npm test           # planning, plan edits, parsing and data checks
 npm run build      # typecheck + static build in dist/
 npm run preview    # serve the build locally, Worker included
+npm run e2e        # browser tests (Playwright, phone-sized), with their own dev server
 ```
 
 After changing the app icon or the background colours, run `sh scripts/splash.sh` (ImageMagick 7) to redraw the iPhone and iPad launch screens in `public/splash/` and their tags in `index.html`.

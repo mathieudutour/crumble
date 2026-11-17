@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { EmptyState } from "../components/EmptyState";
+import { SwipeRow } from "../components/SwipeRow";
 import { useUi } from "../components/UiProvider";
 import { AISLE_NAMES } from "../data/aisles";
 import { formatQuantity } from "../lib/format";
@@ -32,7 +33,10 @@ export function ShopView() {
   const { toBuy, atHome } = splitPantry(shoppingList(plan.slots, catalogue.get), state.pantry);
   const togglePantry = (name: string, adding: boolean) => {
     dispatch({ type: "setPantry", name, value: adding });
-    if (adding) toast(`${name} : toujours à la maison`);
+    if (adding)
+      toast(`${name} : toujours à la maison`, () =>
+        dispatch({ type: "setPantry", name, value: false }),
+      );
   };
 
   return (
@@ -42,7 +46,10 @@ export function ShopView() {
         <button className="cta ghost" onClick={() => copy(shoppingText(toBuy))}>
           Copier la liste
         </button>
-        <button className="cta ghost" onClick={() => dispatch({ type: "clearChecked", week: state.week })}>
+        <button
+          className="cta ghost"
+          onClick={() => dispatch({ type: "clearChecked", week: state.week })}
+        >
           Tout décocher
         </button>
       </div>
@@ -50,37 +57,58 @@ export function ShopView() {
         <section key={aisle}>
           <h3 className="aisle">{AISLE_NAMES[aisle]}</h3>
           {/* Ticked items sink to the bottom of their aisle, so what's left to buy stays together. */}
-          {[...items.filter((i) => !plan.checked[i.key]), ...items.filter((i) => plan.checked[i.key])].map((item) => {
+          {[
+            ...items.filter((i) => !plan.checked[i.key]),
+            ...items.filter((i) => plan.checked[i.key]),
+          ].map((item) => {
             const done = !!plan.checked[item.key];
             return (
-              <div key={item.key} className={`item${done ? " done" : ""}`}>
-                <button
-                  className="item-check"
-                  role="checkbox"
-                  aria-checked={done}
-                  onClick={() => dispatch({ type: "setChecked", week: state.week, key: item.key, value: !done })}
-                >
-                  <span className="box" aria-hidden="true">
-                    {done ? "✓" : ""}
-                  </span>
-                  <span className="nm">{item.name}</span>
-                  <span className="q">{formatQuantity(item.quantity, item.unit)}</span>
-                </button>
-                <button
-                  className="home"
-                  onClick={() => togglePantry(item.name, true)}
-                  aria-label={`${item.name} : j’en ai toujours à la maison`}
-                >
-                  J’en ai
-                </button>
-              </div>
+              <SwipeRow
+                key={item.key}
+                actions={[
+                  { label: "J’en ai", tone: "accent", run: () => togglePantry(item.name, true) },
+                ]}
+              >
+                <div className={`item${done ? " done" : ""}`}>
+                  <button
+                    className="item-check"
+                    role="checkbox"
+                    aria-checked={done}
+                    onClick={() =>
+                      dispatch({
+                        type: "setChecked",
+                        week: state.week,
+                        key: item.key,
+                        value: !done,
+                      })
+                    }
+                  >
+                    <span className="box" aria-hidden="true">
+                      {done ? "✓" : ""}
+                    </span>
+                    <span className="nm">{item.name}</span>
+                    <span className="q">{formatQuantity(item.quantity, item.unit)}</span>
+                  </button>
+                  <button
+                    className="home"
+                    onClick={() => togglePantry(item.name, true)}
+                    aria-label={`${item.name} : j’en ai toujours à la maison`}
+                  >
+                    J’en ai
+                  </button>
+                </div>
+              </SwipeRow>
             );
           })}
         </section>
       ))}
       {atHome.length > 0 && (
         <section className="pantry">
-          <button className="aisle pantry-toggle" aria-expanded={showPantry} onClick={() => setShowPantry((v) => !v)}>
+          <button
+            className="aisle pantry-toggle"
+            aria-expanded={showPantry}
+            onClick={() => setShowPantry((v) => !v)}
+          >
             🏠 Toujours à la maison ({atHome.length}) {showPantry ? "▴" : "▾"}
           </button>
           {showPantry &&
@@ -96,8 +124,9 @@ export function ShopView() {
         </section>
       )}
       <p className="note spaced">
-        « J’en ai » retire de la liste ce que tu as toujours chez toi, cette semaine et les suivantes. À avoir aussi : sel, poivre,
-        huile d’olive, moutarde, miel, sucre, cannelle, muscade, ail.
+        « J’en ai » retire de la liste ce que tu as toujours chez toi, cette semaine et les
+        suivantes. À avoir aussi : sel, poivre, huile d’olive, moutarde, miel, sucre, cannelle,
+        muscade, ail.
       </p>
     </>
   );

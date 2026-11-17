@@ -1,13 +1,27 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { Drawer } from "@base-ui/react/drawer";
+import {
+  createContext,
+  Fragment,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { copyText } from "../lib/clipboard";
 import type { CookSlot } from "../lib/planning";
 import { CookMode } from "./CookMode";
 import { RecipeSheet } from "./RecipeSheet";
+import { SheetPresence } from "./Sheet";
 
 type SheetRenderer = (close: () => void) => ReactNode;
 
+/** A button in the toast: « Annuler » for a plain function. */
+export type ToastAction = (() => void) | { label: string; run: () => void };
+
 interface Ui {
-  toast: (message: string) => void;
+  toast: (message: string, action?: ToastAction) => void;
   copy: (text: string) => Promise<void>;
   /** Shows one bottom sheet at a time, replacing any open one. */
   openSheet: (render: SheetRenderer) => void;
@@ -19,31 +33,47 @@ interface Ui {
 const UiContext = createContext<Ui | null>(null);
 
 export function UiProvider({ children }: { children: ReactNode }) {
-  const [toastMessage, setToastMessage] = useState("");
+  const [message, setMessage] = useState<{
+    text: string;
+    action?: { label: string; run: () => void };
+  } | null>(null);
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimer = useRef<number>(undefined);
-  const [sheet, setSheet] = useState<SheetRenderer | null>(null);
+  // The sheet stays mounted while it animates out: `open` turns false first, then it's dropped once closed.
+  const [sheet, setSheet] = useState<{ render: SheetRenderer; key: number } | null>(null);
+  const [open, setOpen] = useState(false);
   const [cooking, setCooking] = useState<{ mealId: string; slot?: CookSlot } | null>(null);
 
-  const toast = useCallback((message: string) => {
-    setToastMessage(message);
+  const toast = useCallback((text: string, action?: ToastAction) => {
+    setMessage({
+      text,
+      action: typeof action === "function" ? { label: "Annuler", run: action } : action,
+    });
     setToastVisible(true);
     clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToastVisible(false), 1800);
+    // Long enough to read and reach the button when there is one.
+    toastTimer.current = window.setTimeout(() => setToastVisible(false), action ? 5000 : 1800);
   }, []);
 
-  const closeSheet = useCallback(() => setSheet(null), []);
+  const closeSheet = useCallback(() => setOpen(false), []);
+  const presence = useMemo(() => ({ open, onClosed: () => setSheet(null) }), [open]);
 
   const ui = useMemo<Ui>(() => {
-    // Wrapped so React stores the renderer instead of calling it as a state updater.
-    const openSheet = (render: SheetRenderer) => setSheet(() => render);
+    const openSheet = (render: SheetRenderer) => {
+      // The page shrinks back around what's on screen, not around the top of the document.
+      document.documentElement.style.setProperty("--page-scroll", `${scrollY}px`);
+      // A new key replays the opening animation when a sheet replaces another.
+      setSheet((current) => ({ render, key: (current?.key ?? 0) + 1 }));
+      setOpen(true);
+    };
     return {
       toast,
       copy: async (text) => toast((await copyText(text)) ? "Copié" : "Copie impossible ici"),
       openSheet,
-      openRecipe: (mealId, slot) => openSheet((close) => <RecipeSheet mealId={mealId} slot={slot} onClose={close} />),
+      openRecipe: (mealId, slot) =>
+        openSheet((close) => <RecipeSheet mealId={mealId} slot={slot} onClose={close} />),
       openCookMode: (mealId, slot) => {
-        setSheet(null);
+        setOpen(false);
         setCooking({ mealId, slot });
       },
     };
@@ -51,11 +81,29 @@ export function UiProvider({ children }: { children: ReactNode }) {
 
   return (
     <UiContext.Provider value={ui}>
-      {children}
-      {sheet?.(closeSheet)}
-      {cooking && <CookMode mealId={cooking.mealId} slot={cooking.slot} onClose={() => setCooking(null)} />}
+      <Drawer.Provider>
+        {/* While a sheet is open, the page shrinks back over a dark background, as on iOS. */}
+        <Drawer.IndentBackground className="page-indent-background" />
+        <Drawer.Indent className="page-indent">{children}</Drawer.Indent>
+        <SheetPresence.Provider value={presence}>
+          {sheet && <Fragment key={sheet.key}>{sheet.render(closeSheet)}</Fragment>}
+        </SheetPresence.Provider>
+      </Drawer.Provider>
+      {cooking && (
+        <CookMode mealId={cooking.mealId} slot={cooking.slot} onClose={() => setCooking(null)} />
+      )}
       <div className={`toast${toastVisible ? " on" : ""}`} role="status" aria-live="polite">
-        {toastMessage}
+        <span>{message?.text}</span>
+        {message?.action && (
+          <button
+            onClick={() => {
+              message.action?.run();
+              setToastVisible(false);
+            }}
+          >
+            {message.action.label}
+          </button>
+        )}
       </div>
     </UiContext.Provider>
   );

@@ -460,7 +460,6 @@ h2 {
   margin-top: 0;
 }
 
-
 .empty {
   position: absolute;
   inset: 0;
@@ -854,37 +853,147 @@ h2 {
 
 /* Recipe sheet */
 
-.sheet-bg {
+/* Sheets are Base UI drawers (components/Sheet.tsx). Base UI sets the swipe variables and the data-* states; the
+   curves and timings are those of iOS sheets. */
+
+/* While a sheet is open the page shrinks back and rounds its corners over a dark background, following the finger as
+   the sheet is swiped down (--drawer-swipe-progress), and only animating when not being dragged. */
+.page-indent {
+  --progress: var(--drawer-swipe-progress, 0);
+  --indent-transition: calc(1 - clamp(0, calc(var(--progress) * 100000), 1));
+  min-height: 100dvh;
+  background: var(--bg);
+  transform-origin: 50% calc(var(--page-scroll, 0px) + env(safe-area-inset-top));
+  transition:
+    transform 0.45s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+  transition-duration: calc(450ms * var(--indent-transition));
+}
+
+.page-indent[data-active] {
+  transform: scale(calc(0.93 + 0.07 * var(--progress)))
+    translateY(calc((env(safe-area-inset-top) + 10px) * (1 - var(--progress))));
+  border-radius: calc(16px * (1 - var(--progress)));
+  overflow: hidden;
+}
+
+/* Behind the page, and never in the way of taps: it only shows around the page while it's shrunk back. */
+.page-indent-background {
   position: fixed;
   inset: 0;
-  background: var(--scrim);
+  z-index: -1;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.page-indent-background[data-active] {
+  opacity: 1;
+}
+
+.sheet-backdrop {
+  --backdrop-opacity: 0.3;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #000;
+  opacity: calc(var(--backdrop-opacity) * (1 - var(--drawer-swipe-progress, 0)));
+  transition: opacity 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sheet-backdrop {
+    --backdrop-opacity: 0.55;
+  }
+}
+
+/* iOS 26: cover the whole visible viewport. */
+@supports (-webkit-touch-callout: none) {
+  .sheet-backdrop {
+    position: absolute;
+    min-height: 100dvh;
+  }
+}
+
+.sheet-backdrop[data-starting-style],
+.sheet-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.sheet-viewport {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 50;
 }
 
+/* The sheet extends a little below the screen (--bleed), so a springy release never shows a gap under it. */
 .sheet {
+  --bleed: 3rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   outline: none;
   width: 100%;
   max-width: 480px;
-  max-height: 88dvh;
-  overflow: auto;
+  max-height: calc(88dvh + var(--bleed));
+  margin-bottom: calc(-1 * var(--bleed));
+  padding-bottom: var(--bleed);
   border-radius: 24px 24px 0 0;
-  padding: 0 0 max(28px, env(safe-area-inset-bottom));
-  animation: up 0.25s ease-out;
+  overflow: hidden;
+  touch-action: none;
+  transform: translateY(var(--drawer-swipe-movement-y, 0px));
+  transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
 }
 
-@keyframes up {
-  from {
-    transform: translateY(40px);
-    opacity: 0.4;
+.sheet[data-starting-style],
+.sheet[data-ending-style] {
+  transform: translateY(calc(100% - var(--bleed) + 2px));
+}
+
+.sheet[data-ending-style],
+.sheet-backdrop[data-ending-style] {
+  transition-duration: calc(var(--drawer-swipe-strength, 1) * 400ms);
+}
+
+.sheet[data-swiping],
+.sheet-backdrop[data-swiping] {
+  transition-duration: 0ms;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheet-backdrop,
+  .page-indent {
+    transition-duration: 0ms;
   }
-  to {
-    transform: none;
-    opacity: 1;
-  }
+}
+
+.grabber {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 2;
+  width: 36px;
+  height: 5px;
+  margin-left: -18px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.sheet-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: auto;
+  padding: 0 0 max(28px, env(safe-area-inset-bottom));
 }
 
 .sheet .top {
@@ -998,6 +1107,22 @@ h2 {
   transform: translateX(-50%) translateY(0);
 }
 
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.toast.on {
+  pointer-events: auto;
+}
+
+.toast button {
+  color: var(--amber);
+  font-weight: 600;
+  min-height: 28px;
+}
+
 /* Shared controls */
 
 .pill {
@@ -1044,7 +1169,6 @@ h2 {
   padding: 3px;
   gap: 2px;
 }
-
 
 .segmented button {
   flex: 1;
@@ -1752,4 +1876,135 @@ body:has(.timers.floating) .sheet {
   .sheet {
     animation: none;
   }
+}
+
+/* ---------- When something breaks ---------- */
+
+.crash {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 48px) 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.crash h1 {
+  font-size: 34px;
+}
+
+.crash pre {
+  white-space: pre-wrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- Swipe actions (components/SwipeRow.tsx) ---------- */
+
+/* The row slides over its actions; a card inside keeps its look, the wrapper takes its rounding and spacing. */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  margin-bottom: 6px;
+  -webkit-touch-callout: none;
+}
+
+.swipe-row > .swipe-content > .item,
+.swipe-row > .swipe-content > .pick {
+  margin-bottom: 0;
+}
+
+.swipe-content {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+  /* Vertical moves scroll the page; horizontal ones are the swipe. */
+  touch-action: pan-y;
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Planned meals sit in a day's card. */
+.day .swipe-content {
+  background: var(--card);
+}
+
+.swipe-content.dragging {
+  transition: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.swipe-action {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* On a full swipe, the last action takes the whole width. */
+.swipe-actions.full .swipe-action:not(:last-child) {
+  flex: 0 0 0;
+}
+
+.swipe-action.danger {
+  background: var(--nope);
+}
+
+.swipe-action.neutral {
+  background: var(--muted);
+}
+
+.swipe-action.accent {
+  background: var(--green);
+}
+
+/* ---------- Press feedback, as on iOS ---------- */
+
+.cta,
+.pill,
+.x,
+.home,
+.tabs a {
+  transition:
+    opacity 0.2s,
+    filter 0.2s;
+}
+
+.pill:active,
+.x:active,
+.home:active,
+.tabs a:active {
+  opacity: 0.45;
+  transition: none;
+}
+
+.cta:active {
+  filter: brightness(0.9);
+  transition: none;
+}
+
+.item-check,
+.pick-open,
+.meal-row {
+  transition: background 0.25s;
+}
+
+.item-check:active,
+.pick-open:active,
+.meal-row:active {
+  background: color-mix(in srgb, var(--soft) 80%, transparent);
+  transition: none;
 }

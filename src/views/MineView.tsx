@@ -2,6 +2,7 @@ import { DishThumb } from "../components/DishArt";
 import { useState } from "react";
 import { Counts } from "../components/Counts";
 import { MealForm } from "../components/MealForm";
+import { SwipeRow } from "../components/SwipeRow";
 import { useUi } from "../components/UiProvider";
 import { typeLabel } from "../lib/format";
 import { shuffle } from "../lib/random";
@@ -10,11 +11,17 @@ import { isAvailable } from "../store/selectors";
 
 function MealPick({ id, action }: { id: string; action: "unlike" | "like" | "edit" }) {
   const { state, catalogue, dispatch } = useStore();
-  const { openRecipe, openSheet } = useUi();
+  const { openRecipe, openSheet, toast } = useUi();
   const meal = catalogue.get(id);
   if (!meal) return null;
   const badges = [state.ratings[id] === 1 ? "😋" : "", state.kidsLike[id] ? "🧒" : ""].join("");
-  return (
+  const toggle = () => {
+    dispatch({ type: action === "unlike" ? "unlike" : "like", id });
+    toast(action === "unlike" ? `Écarté : ${meal.name}` : `Gardé : ${meal.name}`, () =>
+      dispatch({ type: action === "unlike" ? "like" : "unlike", id }),
+    );
+  };
+  const row = (
     <div className="pick">
       <button className="pick-open" onClick={() => openRecipe(id)}>
         <DishThumb meal={meal} />
@@ -25,15 +32,30 @@ function MealPick({ id, action }: { id: string; action: "unlike" | "like" | "edi
         </span>
       </button>
       {action === "edit" ? (
-        <button className="pill" onClick={() => openSheet((close) => <MealForm meal={meal} onClose={close} />)}>
+        <button
+          className="pill"
+          onClick={() => openSheet((close) => <MealForm meal={meal} onClose={close} />)}
+        >
           Modifier
         </button>
       ) : (
-        <button className="pill" onClick={() => dispatch({ type: action, id })}>
+        <button className="pill" onClick={toggle}>
           {action === "unlike" ? "Écarter" : "♥ Garder"}
         </button>
       )}
     </div>
+  );
+  if (action === "edit") return row;
+  return (
+    <SwipeRow
+      actions={[
+        action === "unlike"
+          ? { label: "Écarter", tone: "danger", run: toggle }
+          : { label: "Garder", tone: "accent", run: toggle },
+      ]}
+    >
+      {row}
+    </SwipeRow>
   );
 }
 
@@ -57,7 +79,8 @@ export function MineView() {
       )}
       {hidden > 0 && (
         <p className="note spaced">
-          {hidden > 1 ? `${hidden} plats gardés reviendront` : "1 plat gardé reviendra"} avec leur saison
+          {hidden > 1 ? `${hidden} plats gardés reviendront` : "1 plat gardé reviendra"} avec leur
+          saison
           {Object.values(state.settings.diet).some(Boolean) || state.settings.avoid.length
             ? " (ou sont mis de côté par tes réglages, onglet « Foyer »)"
             : ""}
@@ -73,12 +96,16 @@ export function MineView() {
 
       <h2 className="section-title">Mes plats ({state.customMeals.length})</h2>
       <p className="note spaced-bottom">
-        Ajoute les recettes de la maison : elles entrent dans le planning et la liste de courses comme les autres.
+        Ajoute les recettes de la maison : elles entrent dans le planning et la liste de courses
+        comme les autres.
       </p>
       {state.customMeals.map((meal) => (
         <MealPick key={meal.id} id={meal.id} action="edit" />
       ))}
-      <button className="cta ghost" onClick={() => openSheet((close) => <MealForm onClose={close} />)}>
+      <button
+        className="cta ghost"
+        onClick={() => openSheet((close) => <MealForm onClose={close} />)}
+      >
         + Ajouter un plat
       </button>
 

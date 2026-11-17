@@ -7,3 +7,5 @@ dev-dist
 .dev.vars
 # Dish illustration originals: large, kept out of the repo (see scripts/dishes.ts)
 dish-sources
+playwright-report
+test-results

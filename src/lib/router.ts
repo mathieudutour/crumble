@@ -22,7 +22,10 @@ const subscribe = (onChange: () => void) => {
 /** The current tab lives in the URL hash so tabs can be linked, bookmarked and navigated with Back. */
 export function useView(): [ViewId, (view: ViewId) => void] {
   const view = useSyncExternalStore(subscribe, readView);
-  useEffect(() => scrollTo(0, 0), [view]);
+  // In braces: newer Chrome makes scrollTo return a promise, which React would take for a cleanup function and crash.
+  useEffect(() => {
+    scrollTo(0, 0);
+  }, [view]);
   const navigate = useCallback((next: ViewId) => {
     location.hash = hrefOf(next);
   }, []);

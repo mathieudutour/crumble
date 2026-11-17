@@ -4,6 +4,7 @@ import { registerSW } from "virtual:pwa-register";
 // Registered first: browsers offer installation once, early in the page's life.
 import "./lib/install";
 import { App } from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TimersProvider } from "./components/Timers";
 import { UiProvider } from "./components/UiProvider";
 import { StoreProvider } from "./store/StoreProvider";
@@ -19,12 +20,14 @@ registerWebMcp(getAppStore());
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <StoreProvider>
-      <TimersProvider>
-        <UiProvider>
-          <App />
-        </UiProvider>
-      </TimersProvider>
-    </StoreProvider>
+    <ErrorBoundary>
+      <StoreProvider>
+        <TimersProvider>
+          <UiProvider>
+            <App />
+          </UiProvider>
+        </TimersProvider>
+      </StoreProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );
