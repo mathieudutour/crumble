@@ -1,5 +1,5 @@
 import { makeCatalogue } from "../lib/catalogue";
-import { isStandalone, keepStorage } from "../lib/install";
+import { handToInstall, installedKey, isStandalone, keepStorage } from "../lib/install";
 import { shuffle } from "../lib/random";
 import { defaultWeek, mondayOf } from "../lib/week";
 import {
@@ -108,6 +108,13 @@ export class AppStore {
       version: stored.sync?.version ?? 0,
       pending: stored.sync?.pending ?? [],
     };
+    // A home screen app on iPhone starts with empty storage, but with a copy of Safari's cookies: join the household
+    // Safari had instead of starting alone.
+    const handed = stored.sync ? undefined : installedKey();
+    if (handed) {
+      this.key = handed;
+      this.sync = { ...this.sync, version: -1 };
+    }
     this.update(false);
     this.keepWeekCurrent();
     // Back on the network or back on screen: check the connection right away.
@@ -308,6 +315,7 @@ export class AppStore {
         }
       : { mode: "solo" };
     if (JSON.stringify(status) !== JSON.stringify(this.status)) this.status = status;
+    if (this.key) handToInstall(this.key);
     const persisted: Persisted = {
       household: this.sync.confirmed,
       swipes: this.swipes,

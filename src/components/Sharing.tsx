@@ -20,10 +20,15 @@ export function statusLabel(status: SyncStatus): string {
 /** Create a shared household, or invite to and leave the current one. Lives in the « Foyer » tab. */
 export function Sharing() {
   const { status, household } = useStore();
-  const { toast, copy } = useUi();
+  const { toast, copy, openSheet } = useUi();
   const [busy, setBusy] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const suggestInstall = useSuggestInstall();
+  const joinWithLink = (
+    <button className="cta ghost" onClick={() => openSheet((close) => <JoinWithLinkSheet onClose={close} />)}>
+      Rejoindre avec un lien
+    </button>
+  );
   const link = status.mode === "household" ? household.inviteLink() : undefined;
   const qr = useMemo(
     () => (link ? renderSVG(link, { border: 1, blackColor: "#2b2420", whiteColor: "#ffffff" }) : ""),
@@ -57,6 +62,7 @@ export function Sharing() {
         >
           {busy ? "Création…" : "👥 Partager avec mon foyer"}
         </button>
+        {joinWithLink}
       </>
     );
   }
@@ -103,6 +109,7 @@ export function Sharing() {
       <p className="note spaced">
         Toute personne qui a ce lien rejoint le foyer : ne l’envoie qu’aux personnes de la maison.
       </p>
+      {joinWithLink}
       <button
         className={`cta ghost${confirmLeave ? " danger" : ""}`}
         onClick={() => {
@@ -147,6 +154,60 @@ export function JoinSheet({ joinKey, onDone }: { joinKey: string; onDone: (joine
           Pas maintenant
         </button>
       </div>
+    </Sheet>
+  );
+}
+
+/** The household key in an invitation link (…/#rejoindre=KEY), or a key on its own. */
+export function keyFromLink(text: string): string | undefined {
+  const value = text.trim();
+  const key = value.match(/rejoindre=([\w-]+)/)?.[1] ?? value;
+  return /^[\w-]{20,}$/.test(key) ? key : undefined;
+}
+
+/**
+ * Joins from a pasted invitation link. Links open in Safari, never in the app on the home screen, which on iPhone
+ * keeps its own storage: this is how that app joins the household Safari already has.
+ */
+function JoinWithLinkSheet({ onClose }: { onClose: () => void }) {
+  const { status, household } = useStore();
+  const { toast } = useUi();
+  const [link, setLink] = useState("");
+  const key = keyFromLink(link);
+  return (
+    <Sheet onClose={onClose} labelledBy="join-link-title">
+      <form
+        className="in form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!key) return;
+          onClose();
+          if (status.mode === "household" && key === status.key) return toast("Tu es déjà dans ce foyer");
+          household.join(key);
+          toast("Bienvenue ! Le foyer arrive…");
+        }}
+      >
+        <SheetHeader id="join-link-title" title="Rejoindre avec un lien" onClose={onClose} />
+        <input
+          className="field"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="Colle le lien d’invitation"
+          aria-label="Lien d’invitation"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-autofocus
+        />
+        <p className="note">
+          {status.mode === "household"
+            ? "Tu quitteras ton foyer actuel, et ce qui est enregistré sur ce téléphone sera remplacé par le foyer que tu rejoins."
+            : "Ce qui est enregistré sur ce téléphone sera remplacé par les plats, plannings et réglages du foyer."}
+        </p>
+        <button className="cta" disabled={!key}>
+          Rejoindre le foyer
+        </button>
+      </form>
     </Sheet>
   );
 }

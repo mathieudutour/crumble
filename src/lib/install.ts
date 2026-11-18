@@ -28,6 +28,30 @@ export const isStandalone = () =>
   matchMedia("(display-mode: standalone)").matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
+// Since iOS 17.2, adding to the home screen copies Safari's cookies, and nothing else, into the new app. Safari keeps
+// the household key in a cookie too, so the app joins the same household on its first launch.
+const KEY_COOKIE = "crumble-foyer";
+
+/** In the browser: leaves the household key where an app added to the home screen finds it. */
+export function handToInstall(key: string) {
+  if (isStandalone() || readCookie(KEY_COOKIE) === key) return;
+  const secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${KEY_COOKIE}=${encodeURIComponent(key)}; Path=/; Max-Age=34560000; SameSite=Strict${secure}`;
+}
+
+/** In an app on the home screen: the key Safari left, if any. */
+export function installedKey(): string | undefined {
+  return isStandalone() ? readCookie(KEY_COOKIE) : undefined;
+}
+
+function readCookie(name: string): string | undefined {
+  const value = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+  return value ? decodeURIComponent(value) : undefined;
+}
+
 /** iPhones and iPads (which report themselves as Macs with touch). */
 const isIos = () =>
   /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);

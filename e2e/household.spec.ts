@@ -1,14 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("a shared household: the second phone joins and sees what an agent does", async ({
-  browser,
-  request,
-}) => {
-  const a = await (await browser.newContext()).newPage();
-  await a.goto("/#foyer");
-  await a.getByRole("button", { name: /Partager avec mon foyer/ }).click();
+/** Shares the first phone's household, and returns its key. */
+async function shareHousehold(page: Page): Promise<string> {
+  await page.goto("/#foyer");
+  await page.getByRole("button", { name: /Partager avec mon foyer/ }).click();
   const read = () =>
-    a.evaluate(
+    page.evaluate(
       () =>
         (
           JSON.parse(localStorage.getItem("crumble/v1") ?? "null") as {
@@ -17,7 +14,15 @@ test("a shared household: the second phone joins and sees what an agent does", a
         )?.sync?.key ?? null,
     );
   await expect.poll(read).not.toBeNull();
-  const key = (await read())!;
+  return (await read())!;
+}
+
+test("a shared household: the second phone joins and sees what an agent does", async ({
+  browser,
+  request,
+}) => {
+  const a = await (await browser.newContext()).newPage();
+  const key = await shareHousehold(a);
 
   const b = await (await browser.newContext()).newPage();
   await b.goto(`/#rejoindre=${key}`);
@@ -53,4 +58,36 @@ test("a shared household: the second phone joins and sees what an agent does", a
   expect(kept.ok()).toBe(true);
   await expect(b.locator(".toast")).toContainText(`Hermes · ${dish.name} : gardé`);
   expect((await mcp({ id: 3, method: "tools/list" }, "nope.nope")).status()).toBe(401);
+});
+
+test("an app added to the home screen opens the household Safari had", async ({ browser }) => {
+  const safari = await browser.newContext();
+  const key = await shareHousehold(await safari.newPage());
+
+  // iOS copies Safari's cookies into the new app, and no other storage.
+  const installed = await browser.newContext({
+    storageState: { cookies: await safari.cookies(), origins: [] },
+  });
+  await installed.addInitScript(() =>
+    Object.defineProperty(navigator, "standalone", { get: () => true }),
+  );
+  const b = await installed.newPage();
+  await b.goto("/#foyer");
+  await expect(b.locator(".sync-badge")).toBeVisible();
+  await expect
+    .poll(() => b.evaluate(() => JSON.parse(localStorage.getItem("crumble/v1")!).sync?.key))
+    .toBe(key);
+});
+
+test("pasting an invitation link joins its household", async ({ browser }) => {
+  const key = await shareHousehold(await (await browser.newContext()).newPage());
+  // Like the app on an iPhone's home screen: no link to tap, its own storage.
+  const b = await (await browser.newContext()).newPage();
+  await b.goto("/#foyer");
+  await b.getByRole("button", { name: "Rejoindre avec un lien" }).click();
+  await b
+    .getByLabel("Lien d’invitation", { exact: true })
+    .fill(`Rejoins notre foyer : https://crumble.example/#rejoindre=${key}`);
+  await b.getByRole("button", { name: "Rejoindre le foyer" }).click();
+  await expect(b.locator(".sync-badge")).toBeVisible();
 });
