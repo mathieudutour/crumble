@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { makePlan } from "./helpers";
 
 // Every visible control must be the topmost element at its centre: a stray layer over the page can block taps.
-for (const hash of ["#choisir", "#planning", "#courses", "#plats", "#foyer"]) {
+for (const hash of ["#choisir", "#planning", "#courses", "#recettes", "#foyer"]) {
   test(`every control on ${hash} can be tapped`, async ({ page }) => {
     await makePlan(page);
     await page.goto(`/${hash}`);

@@ -14,6 +14,7 @@ import {
   SLOT_COUNT,
   withPortions,
   type Diners,
+  type Extra,
   type Habit,
   type Plan,
   type PlanSlot,
@@ -25,6 +26,11 @@ export interface WeekPlan {
   key: string;
   /** Ticked shopping items, by `ShoppingItem.key`. */
   checked: Record<string, boolean>;
+  /**
+   * Starters and desserts added to meals. A redraw keeps them. Missing from plans saved before they existed, which the
+   * server and snapshots carry as stored.
+   */
+  extras?: Extra[];
 }
 
 export interface Settings {
@@ -70,6 +76,8 @@ export type HouseholdAction =
   | { type: "moveMeal"; week: string; from: number; to: number }
   | { type: "clearSlot"; week: string; slot: number }
   | { type: "setLock"; week: string; slot: number; locked: boolean }
+  | { type: "addExtra"; week: string; slot: number; mealId: string }
+  | { type: "removeExtra"; week: string; slot: number; mealId: string }
   | { type: "setChecked"; week: string; key: string; value: boolean }
   | { type: "clearChecked"; week: string }
   | { type: "setPantry"; name: string; value: boolean }
@@ -158,13 +166,29 @@ function asHouseholdMeal(value: unknown): Meal | undefined {
   const original = builtInMeal(value.id);
   if (original) {
     const type = original.type === "fixed" ? "fixed" : value.type === "fixed" ? original.type : value.type;
-    return { ...value, type, custom: undefined, edited: true };
+    return { ...value, type, course: undefined, custom: undefined, edited: true };
   }
-  return value.type === "fixed" ? undefined : { ...value, custom: true, edited: undefined };
+  const course = value.course === "entree" || value.course === "dessert" ? value.course : undefined;
+  return value.type === "fixed" ? undefined : { ...value, course, custom: true, edited: undefined };
 }
 
 const isPlan = (value: unknown): value is Plan =>
   Array.isArray(value) && value.length === SLOT_COUNT && value.every(isSlot);
+
+/** Starters and desserts that still exist, each once per meal. */
+const cleanExtras = (value: unknown, lookup: MealLookup): Extra[] => {
+  const extras: Extra[] = [];
+  for (const e of Array.isArray(value) ? value : [])
+    if (
+      isObject(e) &&
+      isSlotIndex(e.slot) &&
+      isString(e.mealId) &&
+      lookup(e.mealId)?.course &&
+      !extras.some((x) => x.slot === e.slot && x.mealId === e.mealId)
+    )
+      extras.push({ slot: e.slot, mealId: e.mealId });
+  return extras;
+};
 
 /** Slots pointing at meals that no longer exist become free. */
 const cleanSlots = (slots: Plan, lookup: MealLookup): Plan =>
@@ -206,6 +230,7 @@ export function normalizeHousehold(value: unknown, fallbackWeek: string): Househ
       slots: cleanSlots(plan.slots, lookup),
       key: isString(plan.key) ? plan.key : "",
       checked: flags(plan.checked),
+      extras: cleanExtras(plan.extras, lookup),
     };
   }
   const diners = Array.isArray(stored.diners) && stored.diners.length === SLOT_COUNT ? stored.diners : [];
@@ -245,6 +270,8 @@ const ACTION_TYPES = new Set<HouseholdAction["type"]>([
   "moveMeal",
   "clearSlot",
   "setLock",
+  "addExtra",
+  "removeExtra",
   "setChecked",
   "clearChecked",
   "setPantry",
@@ -315,7 +342,12 @@ export function householdReducer(state: Household, action: HouseholdAction): Hou
         ...state,
         plans: {
           ...Object.fromEntries(kept),
-          [action.week]: { slots: action.slots, key: isString(action.key) ? action.key : "", checked: {} },
+          [action.week]: {
+            slots: action.slots,
+            key: isString(action.key) ? action.key : "",
+            checked: {},
+            extras: state.plans[action.week]?.extras ?? [],
+          },
         },
       };
     }
@@ -346,6 +378,18 @@ export function householdReducer(state: Household, action: HouseholdAction): Hou
           i === action.slot && slot.kind === "cook" ? { ...slot, locked: action.locked === true } : slot,
         ),
       }));
+    case "addExtra":
+    case "removeExtra": {
+      if (!isSlotIndex(action.slot) || !lookup()(action.mealId)?.course) return state;
+      const same = (e: Extra) => e.slot === action.slot && e.mealId === action.mealId;
+      return updatePlan(state, action.week, (plan) => ({
+        ...plan,
+        extras: [
+          ...(plan.extras ?? []).filter((e) => !same(e)),
+          ...(action.type === "addExtra" ? [{ slot: action.slot, mealId: action.mealId }] : []),
+        ],
+      }));
+    }
     case "setChecked":
       if (!isString(action.key)) return state;
       return updatePlan(state, action.week, (plan) => ({
@@ -397,9 +441,18 @@ export function householdReducer(state: Household, action: HouseholdAction): Hou
     case "saveMeal": {
       const meal = asHouseholdMeal(action.meal);
       if (!meal) return state;
+      const customMeals = [...state.customMeals.filter((m) => m.id !== meal.id), meal];
+      // Starters and desserts are never swiped nor drawn.
+      if (meal.course)
+        return {
+          ...state,
+          customMeals,
+          order: without(state.order, meal.id),
+          liked: without(state.liked, meal.id),
+          noped: without(state.noped, meal.id),
+        };
       // An edit (of a built-in dish, or of their own) replaces the saved version, if any.
-      if (meal.edited || state.customMeals.some((m) => m.id === meal.id))
-        return { ...state, customMeals: [...state.customMeals.filter((m) => m.id !== meal.id), meal] };
+      if (meal.edited || state.customMeals.some((m) => m.id === meal.id)) return { ...state, customMeals };
       // A dish the household adds is one they like.
       return {
         ...state,
@@ -417,7 +470,11 @@ export function householdReducer(state: Household, action: HouseholdAction): Hou
       const plans = Object.fromEntries(
         Object.entries(state.plans).map(([week, plan]) => [
           week,
-          { ...plan, slots: withPortions(cleanSlots(plan.slots, remaining), state.diners, remaining) },
+          {
+            ...plan,
+            slots: withPortions(cleanSlots(plan.slots, remaining), state.diners, remaining),
+            extras: (plan.extras ?? []).filter((e) => e.mealId !== action.id),
+          },
         ]),
       );
       return {

@@ -3,6 +3,7 @@ import { recipeSteps } from "../lib/catalogue";
 import { decimal, formatQuantity } from "../lib/format";
 import { baseServings, scaleQuantity, type CookSlot } from "../lib/planning";
 import { useStore } from "../store/StoreProvider";
+import { AddToPlanSheet } from "./AddToPlan";
 import { DishArt } from "./DishArt";
 import { MealForm } from "./MealForm";
 import { MealTags } from "./MealTags";
@@ -48,6 +49,15 @@ export function RecipeSheet({ mealId, slot, onClose }: Props) {
         {steps.length > 0 && (
           <button className="cta cook" onClick={() => openCookMode(meal.id, slot)}>
             👩‍🍳 Mode cuisine
+          </button>
+        )}
+        {/* From the planning, the recipe is already in it. */}
+        {!slot && (
+          <button
+            className="cta ghost"
+            onClick={() => openSheet((close) => <AddToPlanSheet mealId={meal.id} onClose={close} />)}
+          >
+            🗓 Ajouter au planning
           </button>
         )}
         <h5>Ingrédients</h5>

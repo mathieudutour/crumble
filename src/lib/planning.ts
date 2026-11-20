@@ -23,6 +23,25 @@ export type PlanSlot =
   | { kind: "leftovers"; mealId: string; from: number };
 
 export type CookSlot = Extract<PlanSlot, { kind: "cook" }>;
+
+/** A starter or dessert added to the meal in `slot`, alongside its main dish. */
+export interface Extra {
+  slot: number;
+  mealId: string;
+}
+
+/** What the extras of a plan take to make, for the people at each meal. Meals nobody is home for are skipped. */
+export function extrasToCook(
+  extras: readonly Extra[] = [],
+  diners: readonly Diners[],
+  lookup: MealLookup,
+): { mealId: string; factor: number }[] {
+  return extras.flatMap(({ slot, mealId }) => {
+    const meal = lookup(mealId);
+    const portions = portionsOf(diners[slot] ?? NOBODY);
+    return meal && portions > 0 ? [{ mealId, factor: scaleFactor(meal, portions) }] : [];
+  });
+}
 export type Plan = PlanSlot[];
 
 export const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];

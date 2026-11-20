@@ -1,3 +1,4 @@
+import { extrasToCook } from "../lib/planning";
 import { useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { SwipeRow } from "../components/SwipeRow";
@@ -30,7 +31,10 @@ export function ShopView() {
     );
   }
 
-  const { toBuy, atHome } = splitPantry(shoppingList(plan.slots, catalogue.get), state.pantry);
+  const { toBuy, atHome } = splitPantry(
+    shoppingList(plan.slots, catalogue.get, extrasToCook(plan.extras, state.diners, catalogue.get)),
+    state.pantry,
+  );
   const togglePantry = (name: string, adding: boolean) => {
     dispatch({ type: "setPantry", name, value: adding });
     if (adding)

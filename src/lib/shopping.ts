@@ -2,7 +2,7 @@ import { AISLE_NAMES, AISLE_ORDER, aisleOf } from "../data/aisles";
 import type { Aisle } from "../data/types";
 import type { MealLookup } from "./catalogue";
 import { formatQuantity } from "./format";
-import { DAYS, scaleQuantity, type Plan } from "./planning";
+import { DAYS, scaleQuantity, type Extra, type Plan } from "./planning";
 import { addDays, fromIso } from "./week";
 
 export interface ShoppingItem {
@@ -15,11 +15,18 @@ export interface ShoppingItem {
 
 export type ShoppingList = { aisle: Aisle; items: ShoppingItem[] }[];
 
-/** Sums every cooked meal's scaled ingredients, grouped by aisle. Leftovers cost nothing extra. */
-export function shoppingList(plan: Plan, lookup: MealLookup): ShoppingList {
+/**
+ * Sums every cooked meal's scaled ingredients, grouped by aisle. Leftovers cost nothing extra. `extras` are the plan's
+ * starters and desserts, from `extrasToCook`.
+ */
+export function shoppingList(
+  plan: Plan,
+  lookup: MealLookup,
+  extras: readonly { mealId: string; factor: number }[] = [],
+): ShoppingList {
   const totals = new Map<string, ShoppingItem>();
-  for (const slot of plan) {
-    if (slot.kind !== "cook") continue;
+  const cooked = [...plan.flatMap((slot) => (slot.kind === "cook" ? [slot] : [])), ...extras];
+  for (const slot of cooked) {
     for (const [name, quantity, unit] of lookup(slot.mealId)?.ingredients ?? []) {
       const key = `${name}|${unit}`;
       const item = totals.get(key) ?? { key, name, unit, quantity: 0 };
@@ -53,14 +60,20 @@ export const shoppingText = (list: ShoppingList) =>
 
 export const dayTitle = (week: string, day: number) => `${DAYS[day]} ${fromIso(addDays(week, day)).getDate()}`;
 
-export const planText = (plan: Plan, lookup: MealLookup, week: string) =>
+export const planText = (plan: Plan, lookup: MealLookup, week: string, extras: readonly Extra[] = []) =>
   DAYS.map((_, d) => {
     const meals = [0, 1].map((dinner) => {
-      const slot = plan[d * 2 + dinner];
+      const index = d * 2 + dinner;
+      const slot = plan[index];
       const label = dinner ? "Soir" : "Midi";
       const meal = slot?.kind === "cook" || slot?.kind === "leftovers" ? lookup(slot.mealId) : undefined;
-      if (!slot || !meal) return `  ${label} : ${slot?.kind === "none" ? "dehors" : "libre"}`;
-      return `  ${label} : ${slot.kind === "leftovers" ? "Restes – " : ""}${meal.name}`;
+      const sides = extras
+        .filter((e) => e.slot === index)
+        .flatMap((e) => lookup(e.mealId)?.name ?? [])
+        .map((name) => ` + ${name}`)
+        .join("");
+      if (!slot || !meal) return `  ${label} : ${slot?.kind === "none" ? "dehors" : "libre"}${sides}`;
+      return `  ${label} : ${slot.kind === "leftovers" ? "Restes – " : ""}${meal.name}${sides}`;
     });
     return [dayTitle(week, d), ...meals].join("\n");
   }).join("\n");

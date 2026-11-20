@@ -96,9 +96,9 @@ function Habits() {
   const [adding, setAdding] = useState(false);
   const setHabits = (next: typeof habits) =>
     dispatch({ type: "setSettings", settings: { habits: [...next].sort((a, b) => a.slot - b.slot) } });
-  const choices = [...catalogue.all].sort(
-    (a, b) => Number(b.type === "fixed") - Number(a.type === "fixed") || a.name.localeCompare(b.name, "fr"),
-  );
+  const choices = catalogue.all
+    .filter((m) => !m.course)
+    .sort((a, b) => Number(b.type === "fixed") - Number(a.type === "fixed") || a.name.localeCompare(b.name, "fr"));
 
   return (
     <>

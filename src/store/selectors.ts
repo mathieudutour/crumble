@@ -43,7 +43,7 @@ export function remainingIds(s: AppState, catalogue: Catalogue): string[] {
 
 /** Liked meals available this week. Others are kept and come back with their season. */
 export const likedMeals = (s: AppState, catalogue: Catalogue): Meal[] =>
-  s.liked.map(catalogue.get).filter((m): m is Meal => isAvailable(s, m));
+  s.liked.map(catalogue.get).filter((m): m is Meal => isAvailable(s, m) && !m.course);
 
 export function counts(s: AppState, catalogue: Catalogue) {
   const liked = likedMeals(s, catalogue);

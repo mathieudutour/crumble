@@ -156,3 +156,59 @@ describe("household versions of built-in dishes", () => {
     expect(makeCatalogue(state.customMeals).get("perso-x")).toBeUndefined();
   });
 });
+
+describe("starters and desserts", () => {
+  const mousse = {
+    id: "perso-mousse",
+    emoji: "🍫",
+    name: "Mousse au chocolat",
+    type: "either" as const,
+    course: "dessert" as const,
+    time: "20 min",
+    ingredients: [["Chocolat noir", 200, "g"] as const],
+    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  };
+  const reduce = (state: Household, ...actions: HouseholdAction[]) => actions.reduce(householdReducer, state);
+  const dinner = slotIndex(0, true);
+
+  it("are never swiped nor drawn", () => {
+    const state = reduce(household(), { type: "saveMeal", meal: mousse });
+    const own = makeCatalogue(state.customMeals);
+    expect(own.get(mousse.id)?.course).toBe("dessert");
+    expect(own.swipeable.some((m) => m.id === mousse.id)).toBe(false);
+    expect(state.liked).not.toContain(mousse.id);
+  });
+
+  it("go with a plan saved before they existed, as the server still holds it", () => {
+    const saved = reduce(household(), { type: "saveMeal", meal: mousse });
+    const { extras: _, ...old } = saved.plans[WEEK]!;
+    const state = reduce(
+      { ...saved, plans: { [WEEK]: old } },
+      { type: "addExtra", week: WEEK, slot: dinner, mealId: mousse.id },
+    );
+    expect(state.plans[WEEK]!.extras).toEqual([{ slot: dinner, mealId: mousse.id }]);
+  });
+
+  it("go with a meal, stay through a redraw, and leave with their recipe", () => {
+    let state = reduce(
+      household(),
+      { type: "saveMeal", meal: mousse },
+      { type: "addExtra", week: WEEK, slot: dinner, mealId: mousse.id },
+      { type: "addExtra", week: WEEK, slot: dinner, mealId: mousse.id },
+      // A main dish isn't an extra.
+      { type: "addExtra", week: WEEK, slot: dinner, mealId: "poulet" },
+    );
+    expect(state.plans[WEEK]!.extras).toEqual([{ slot: dinner, mealId: mousse.id }]);
+    state = reduce(state, {
+      type: "setPlan",
+      week: WEEK,
+      slots: state.plans[WEEK]!.slots,
+      key: "",
+      keepFrom: "2026-01-01",
+    });
+    expect(state.plans[WEEK]!.extras).toHaveLength(1);
+    expect(normalizeHousehold(JSON.parse(JSON.stringify(state)), WEEK).plans[WEEK]!.extras).toHaveLength(1);
+    state = reduce(state, { type: "deleteMeal", id: mousse.id });
+    expect(state.plans[WEEK]!.extras).toEqual([]);
+  });
+});

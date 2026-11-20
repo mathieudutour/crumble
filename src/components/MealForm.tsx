@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { ALL_YEAR } from "../data/meals";
-import type { Ingredient, Meal, MealType } from "../data/types";
-import { recipeSteps } from "../lib/catalogue";
+import type { Course, Ingredient, Meal, MealType } from "../data/types";
+import { courseOf, recipeSteps } from "../lib/catalogue";
 import { COUNT_UNITS } from "../lib/format";
 import { parseMealTime, mealTimeLabel } from "../lib/time";
 import { MONTHS_SHORT } from "../lib/week";
@@ -9,12 +9,39 @@ import { useStore } from "../store/StoreProvider";
 import { Sheet, SheetHeader } from "./Sheet";
 import { useUi } from "./UiProvider";
 
-const EMOJIS = ["🍲", "🥘", "🍝", "🍛", "🥗", "🍳", "🐟", "🍗", "🥩", "🥧", "🌮", "🍕", "🥙", "🍜", "🥦", "🧀"];
+const EMOJIS = [
+  "🍲",
+  "🥘",
+  "🍝",
+  "🍛",
+  "🥗",
+  "🍳",
+  "🐟",
+  "🍗",
+  "🥩",
+  "🥧",
+  "🌮",
+  "🍕",
+  "🥙",
+  "🍜",
+  "🥦",
+  "🧀",
+  "🍰",
+  "🍮",
+];
+/** The icon a new recipe starts with, by course. */
+const COURSE_EMOJI: Record<Course, string> = { plat: "🍲", entree: "🥗", dessert: "🍰" };
 const UNITS = ["", "g", "cl", ...COUNT_UNITS];
 const TYPES: { value: Exclude<MealType, "fixed">; label: string }[] = [
   { value: "dinner", label: "Dîner" },
   { value: "lunch", label: "Midi" },
   { value: "either", label: "Midi ou soir" },
+];
+
+const COURSES: { value: Course; label: string }[] = [
+  { value: "plat", label: "Plat" },
+  { value: "entree", label: "Entrée" },
+  { value: "dessert", label: "Dessert" },
 ];
 
 interface Row {
@@ -33,8 +60,16 @@ const toRow = ([name, quantity, unit]: Ingredient): Row => ({
 });
 const emptyRow = (): Row => ({ key: nextRowKey++, name: "", quantity: "", unit: "" });
 
-/** Create or edit one of the household's own dishes. */
-export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }) {
+/** Create or edit one of the household's own dishes. `course` is the kind of dish a new one starts as. */
+export function MealForm({
+  meal,
+  course: initialCourse = "plat",
+  onClose,
+}: {
+  meal?: Meal;
+  course?: Course;
+  onClose: () => void;
+}) {
   const { dispatch, catalogue } = useStore();
   const { toast } = useUi();
   const listId = useId();
@@ -42,7 +77,8 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
   const time = meal ? parseMealTime(meal.time) : undefined;
 
   const [name, setName] = useState(meal?.name ?? "");
-  const [emoji, setEmoji] = useState(meal?.emoji ?? "🍲");
+  const [emoji, setEmoji] = useState(meal?.emoji ?? COURSE_EMOJI[initialCourse]);
+  const [course, setCourse] = useState<Course>(meal ? courseOf(meal) : initialCourse);
   const [type, setType] = useState<Exclude<MealType, "fixed">>(meal && meal.type !== "fixed" ? meal.type : "dinner");
   const [total, setTotal] = useState(String(time?.total ?? 30));
   const [active, setActive] = useState(time && time.active < time.total ? String(time.active) : "");
@@ -75,9 +111,10 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
         id: meal?.id ?? `perso-${Date.now().toString(36)}`,
         emoji: emoji.trim() || "🍽",
         name: name.trim(),
-        type: meal?.type === "fixed" ? "fixed" : type,
+        type: meal?.type === "fixed" ? "fixed" : course === "plat" ? type : "either",
+        course: course === "plat" ? undefined : course,
         time: mealTimeLabel(totalMinutes, activeMinutes || undefined),
-        batch: batch || undefined,
+        batch: (course === "plat" && batch) || undefined,
         ingredients,
         months: months.length ? months : ALL_YEAR,
         steps: steps
@@ -86,14 +123,18 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
           .filter(Boolean),
       },
     });
-    toast(meal ? "Plat modifié" : "Plat ajouté à tes plats gardés");
+    toast(meal ? "Recette modifiée" : course === "plat" ? "Plat ajouté à tes plats gardés" : "Recette ajoutée");
     onClose();
   };
 
   return (
     <Sheet onClose={onClose} labelledBy="meal-form-title">
       <form className="in form" onSubmit={submit}>
-        <SheetHeader id="meal-form-title" title={meal ? "Modifier la recette" : "Ajouter un plat"} onClose={onClose} />
+        <SheetHeader
+          id="meal-form-title"
+          title={meal ? "Modifier la recette" : "Ajouter une recette"}
+          onClose={onClose}
+        />
         {builtIn && (
           <p className="note">
             Tes changements remplacent la recette d’origine pour le foyer. Tu pourras y revenir à tout moment.
@@ -135,21 +176,50 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
           />
         </div>
 
-        {meal?.type !== "fixed" && <span className="label">C’est pour</span>}
-        <div className="segmented" role="radiogroup" aria-label="C’est pour" hidden={meal?.type === "fixed"}>
-          {TYPES.map((t) => (
-            <button
-              type="button"
-              key={t.value}
-              role="radio"
-              aria-checked={type === t.value}
-              className={type === t.value ? "on" : undefined}
-              onClick={() => setType(t.value)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* Built-in dishes are all main dishes. */}
+        {!builtIn && (
+          <>
+            <span className="label">C’est</span>
+            <div className="segmented" role="radiogroup" aria-label="C’est">
+              {COURSES.map((c) => (
+                <button
+                  type="button"
+                  key={c.value}
+                  role="radio"
+                  aria-checked={course === c.value}
+                  className={course === c.value ? "on" : undefined}
+                  onClick={() => {
+                    // A starting icon follows the course; one the person picked stays.
+                    if (emoji === COURSE_EMOJI[course]) setEmoji(COURSE_EMOJI[c.value]);
+                    setCourse(c.value);
+                  }}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {meal?.type !== "fixed" && course === "plat" && (
+          <>
+            <span className="label">C’est pour</span>
+            <div className="segmented" role="radiogroup" aria-label="C’est pour">
+              {TYPES.map((t) => (
+                <button
+                  type="button"
+                  key={t.value}
+                  role="radio"
+                  aria-checked={type === t.value}
+                  className={type === t.value ? "on" : undefined}
+                  onClick={() => setType(t.value)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="row form-row">
           <label>
@@ -178,10 +248,12 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
           </label>
         </div>
 
-        <label className="check">
-          <input type="checkbox" checked={batch} onChange={(e) => setBatch(e.target.checked)} />
-          Fait 2 repas : le planning prévoit les restes
-        </label>
+        {course === "plat" && (
+          <label className="check">
+            <input type="checkbox" checked={batch} onChange={(e) => setBatch(e.target.checked)} />
+            Fait 2 repas : le planning prévoit les restes
+          </label>
+        )}
 
         <span className="label">Saison</span>
         <div className="months">
@@ -276,7 +348,7 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
         </p>
 
         <button type="submit" className="cta">
-          {meal ? "Enregistrer" : "Ajouter le plat"}
+          {meal ? "Enregistrer" : "Ajouter la recette"}
         </button>
         {meal && (meal.custom || meal.edited) && (
           <button
@@ -285,7 +357,7 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
             onClick={() => {
               if (!confirmDelete) return setConfirmDelete(true);
               dispatch({ type: "deleteMeal", id: meal.id });
-              toast(meal.custom ? "Plat supprimé" : "Recette d’origine rétablie");
+              toast(meal.custom ? "Recette supprimée" : "Recette d’origine rétablie");
               onClose();
             }}
           >
@@ -294,7 +366,7 @@ export function MealForm({ meal, onClose }: { meal?: Meal; onClose: () => void }
                 ? "Sûr ? Touche encore pour supprimer"
                 : "Sûr ? Tes changements seront perdus"
               : meal.custom
-                ? "Supprimer ce plat"
+                ? "Supprimer cette recette"
                 : "Revenir à la recette d’origine"}
           </button>
         )}

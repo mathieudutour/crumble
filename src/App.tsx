@@ -7,7 +7,7 @@ import { monthTitle } from "./lib/season";
 import { seasonMonthOf } from "./lib/week";
 import { useStore } from "./store/StoreProvider";
 import { HouseholdView } from "./views/HouseholdView";
-import { MineView } from "./views/MineView";
+import { RecipesView } from "./views/RecipesView";
 import { PlanView } from "./views/PlanView";
 import { ShopView } from "./views/ShopView";
 import { SwipeView } from "./views/SwipeView";
@@ -86,7 +86,7 @@ export function App() {
         {view === "swipe" && <SwipeView onPlan={toPlan} />}
         {view === "plan" && <PlanView onSwipe={toSwipe} onShop={() => navigate("shop")} />}
         {view === "shop" && <ShopView />}
-        {view === "mine" && <MineView />}
+        {view === "recipes" && <RecipesView />}
         {view === "home" && <HouseholdView onPlan={toPlan} onSwipe={toSwipe} />}
       </main>
     </div>

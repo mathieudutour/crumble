@@ -45,9 +45,9 @@ test("ticking a shopping item sinks it", async ({ page }) => {
   await expect(page.locator(".item.done .nm", { hasText: name })).toBeVisible();
 });
 
-test("a kept dish is set aside with a swipe, and « Annuler » keeps it again", async ({ page }) => {
-  await page.goto("/#plats");
-  const kept = page.getByRole("heading", { name: /Gardés/ });
+test("a dish is set aside with a swipe, and « Annuler » brings it back", async ({ page }) => {
+  await page.goto("/#recettes");
+  const kept = page.getByRole("heading", { name: /Écartés/ });
   const before = await kept.innerText();
   await (await finger(page)).swipeLeft(page.locator(".swipe-row").first(), 300);
   await expect(page.locator(".toast")).toContainText("Écarté");

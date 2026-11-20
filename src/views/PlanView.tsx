@@ -14,6 +14,7 @@ import {
   isTooLong,
   slotIndex,
   slotName,
+  type Extra,
   type Plan,
   type PlanSlot,
 } from "../lib/planning";
@@ -24,6 +25,7 @@ import { isReady, planKey, required } from "../store/selectors";
 
 interface SlotRowProps {
   plan: Plan;
+  extras: readonly Extra[];
   slot: number;
   week: string;
   editable: boolean;
@@ -83,7 +85,60 @@ function SlotActions({
   );
 }
 
-function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }: SlotRowProps) {
+/** Starters and desserts added to a meal, under its main dish. */
+function SlotExtras({
+  extras,
+  slot,
+  week,
+  canEdit,
+}: {
+  extras: readonly Extra[];
+  slot: number;
+  week: string;
+  canEdit: boolean;
+}) {
+  const { catalogue, dispatch } = useStore();
+  const { openRecipe, toast } = useUi();
+  const meals = extras.filter((e) => e.slot === slot).flatMap((e) => catalogue.get(e.mealId) ?? []);
+  if (!meals.length) return null;
+  return (
+    <ul className="slot-extras">
+      {meals.map((meal) => (
+        <li key={meal.id}>
+          <button className="extra-open" onClick={() => openRecipe(meal.id)}>
+            <span className="note">{meal.course === "dessert" ? "Dessert" : "Entrée"} · </span>
+            {meal.name}
+          </button>
+          {canEdit && (
+            <button
+              className="extra-remove"
+              aria-label={`Retirer ${meal.name}`}
+              onClick={() => {
+                dispatch({ type: "removeExtra", week, slot, mealId: meal.id });
+                toast(`Retiré : ${meal.name}`, () =>
+                  dispatch({ type: "addExtra", week, slot, mealId: meal.id }),
+                );
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SlotRow({
+  plan,
+  extras,
+  slot,
+  week,
+  editable,
+  moving,
+  onMoveStart,
+  onMoveHere,
+}: SlotRowProps) {
   const { state, catalogue, dispatch } = useStore();
   const { openRecipe, openSheet, toast } = useUi();
   const entry = plan[slot]!;
@@ -247,6 +302,7 @@ function SlotRow({ plan, slot, week, editable, moving, onMoveStart, onMoveHere }
       <div className="when">{when}</div>
       <div className="meal-body">
         {swipeable ? <SwipeRow actions={swipeActions}>{mealButton}</SwipeRow> : mealButton}
+        <SlotExtras extras={extras} slot={slot} week={week} canEdit={canEdit} />
         {askRating && (
           <div className="slot-actions">
             <span className="note">C’était bon ?</span>
@@ -392,7 +448,10 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
             🔀 Autre tirage
           </button>
         )}
-        <button className="cta ghost" onClick={() => copy(planText(slots, catalogue.get, week))}>
+        <button
+          className="cta ghost"
+          onClick={() => copy(planText(slots, catalogue.get, week, plan.extras ?? []))}
+        >
           Copier
         </button>
       </div>
@@ -423,6 +482,7 @@ export function PlanView({ onSwipe, onShop }: { onSwipe: () => void; onShop: () 
                 <SlotRow
                   key={slot}
                   plan={slots}
+                  extras={plan.extras ?? []}
                   slot={slot}
                   week={week}
                   editable={editable}

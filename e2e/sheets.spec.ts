@@ -21,9 +21,9 @@ test("a dish's sheet opens over the shrunk page and closes with a swipe down or 
   await expect(page.locator(".sheet")).toHaveCount(0);
 });
 
-test("a recipe opens from « Plats », with its ingredients", async ({ page }) => {
+test("a recipe opens from « Recettes », with its ingredients", async ({ page }) => {
   await makePlan(page);
-  await page.goto("/#plats");
+  await page.goto("/#recettes");
   await page.locator(".pick-open").first().click();
   await expect(page.locator(".sheet ul li").first()).toBeVisible();
   await page.locator(".sheet .x").first().click();

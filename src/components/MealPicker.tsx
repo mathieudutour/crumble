@@ -31,7 +31,7 @@ export function MealPicker({ slot, currentId, onPick, onClear, onClose }: Props)
   const matches = (meal: Meal) =>
     meal.id !== currentId && fitsSlot(meal, slot) && normalize(meal.name).includes(normalize(query));
   const byName = (a: Meal, b: Meal) => a.name.localeCompare(b.name, "fr");
-  const available = catalogue.all.filter((m) => m.type !== "fixed" && isAvailable(state, m) && matches(m));
+  const available = catalogue.swipeable.filter((m) => isAvailable(state, m) && matches(m));
   const liked = available.filter((m) => state.liked.includes(m.id)).sort(byName);
   const others = available.filter((m) => !state.liked.includes(m.id)).sort(byName);
   const habits = catalogue.all.filter((m) => m.type === "fixed" && matches(m));

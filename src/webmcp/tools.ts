@@ -8,13 +8,22 @@ import { avoidedIn, avoidOptions, normalize } from "../lib/avoid";
 import { makeCatalogue, recipeSteps, type Catalogue } from "../lib/catalogue";
 import { COUNT_UNITS, dinersText, formatQuantity } from "../lib/format";
 import { canMove } from "../lib/planEdit";
-import { DAYS, fitsSlot, hasLeftovers, isTooLong, scaleQuantity, slotIndex, type CookSlot } from "../lib/planning";
+import {
+  DAYS,
+  extrasToCook,
+  fitsSlot,
+  hasLeftovers,
+  isTooLong,
+  scaleQuantity,
+  slotIndex,
+  type CookSlot,
+} from "../lib/planning";
 import { seasonLabel } from "../lib/season";
 import { shoppingList, splitPantry } from "../lib/shopping";
 import { stepText } from "../lib/steps";
 import { mealTimeLabel, parseMealTime } from "../lib/time";
 import { addDays, mondayOf, weekName, weekRange } from "../lib/week";
-import { drawPlan } from "../store/plan";
+import { drawPlan, emptyPlan } from "../store/plan";
 import { counts, isAvailable, isReady, planKey, required } from "../store/selectors";
 import type { Action, AppState } from "../store/types";
 
@@ -82,7 +91,8 @@ function dishSummary(state: AppState, meal: Meal) {
   return {
     id: meal.id,
     name: meal.name,
-    type: meal.type === "fixed" ? "habit only" : TYPES[meal.type],
+    course: COURSES[meal.course ?? "plat"],
+    type: meal.course ? undefined : meal.type === "fixed" ? "habit only" : TYPES[meal.type],
     time: meal.time,
     makes_two_meals: !!meal.batch,
     season: seasonLabel(meal),
@@ -110,10 +120,18 @@ const UNITS = ["", "g", "cl", ...COUNT_UNITS];
 const RECIPE_NOTES =
   "Ingredient quantities are for about 2.5 portions, or 5 when the dish makes two meals; the plan scales them. In steps, wrap quantities that should follow the portions in braces, like « {3 œufs} » or « {200 g} ».";
 
+const COURSES = { plat: "main", entree: "starter", dessert: "dessert" } as const;
+
 /** The recipe fields add_own_dish and edit_dish take. */
 const RECIPE_FIELDS = {
   name: { type: "string" },
-  type: { type: "string", enum: ["dinner", "lunch", "either"] },
+  course: {
+    type: "string",
+    enum: ["main", "starter", "dessert"],
+    description:
+      "Defaults to main. Starters and desserts are never drawn: add them to a meal with set_extra. Built-in dishes stay main dishes.",
+  },
+  type: { type: "string", enum: ["dinner", "lunch", "either"], description: "For main dishes." },
   minutes: { type: "integer", minimum: 1, description: "Total time." },
   active_minutes: { type: "integer", minimum: 1, description: "Hands-on time, if less than the total." },
   makes_two_meals: { type: "boolean", description: "The plan then books leftovers for the next meal." },
@@ -139,6 +157,11 @@ function applyRecipe(base: Meal, input: Record<string, unknown>): Meal {
   if (typeof input.name === "string" && input.name.trim()) meal.name = input.name.trim();
   if (typeof input.emoji === "string" && input.emoji.trim()) meal.emoji = input.emoji.trim();
   if (input.type === "dinner" || input.type === "lunch" || input.type === "either") meal.type = input.type;
+  if (input.course === "main") meal.course = undefined;
+  else if (input.course === "starter" || input.course === "dessert") {
+    meal.course = input.course === "starter" ? "entree" : "dessert";
+    if (meal.type !== "fixed") meal.type = "either";
+  }
   if (input.minutes !== undefined || input.active_minutes !== undefined) {
     const current = parseMealTime(base.time);
     const total = Math.max(1, Math.round(Number(input.minutes ?? current.total) || current.total));
@@ -193,6 +216,17 @@ export function createTools(api: CrumbleApi): Tool[] {
       };
     }
     const describeSlot = (slot: number) => {
+      const described = describeMain(slot);
+      const extras = (plan.extras ?? [])
+        .filter((e) => e.slot === slot)
+        .map((e) => ({
+          dish_id: e.mealId,
+          dish: catalogue.get(e.mealId)?.name,
+          course: COURSES[catalogue.get(e.mealId)?.course ?? "plat"],
+        }));
+      return extras.length ? { ...described, extras } : described;
+    };
+    const describeMain = (slot: number) => {
       const entry = plan.slots[slot]!;
       const diners = dinersText(state.diners[slot]!);
       if (entry.kind === "none") return { status: "nobody home" };
@@ -224,6 +258,13 @@ export function createTools(api: CrumbleApi): Tool[] {
         soir: describeSlot(slotIndex(d, true)),
       })),
     };
+  };
+
+  /** The week's plan, or an empty one to fill by hand, as the app does when a recipe is added to a week without one. */
+  const ensurePlan = (weekStart: string) => {
+    const { state, catalogue } = context();
+    if (!state.plans[weekStart]) api.dispatch(emptyPlan(state, catalogue, weekStart, api.now()));
+    return api.getState().plans[weekStart]!;
   };
 
   const requirePlan = (weekStart: string) => {
@@ -265,7 +306,10 @@ export function createTools(api: CrumbleApi): Tool[] {
         const weekStart = weekOf(input, false);
         const { state, catalogue } = context();
         const plan = requirePlan(weekStart);
-        const { toBuy, atHome } = splitPantry(shoppingList(plan.slots, catalogue.get), state.pantry);
+        const { toBuy, atHome } = splitPantry(
+          shoppingList(plan.slots, catalogue.get, extrasToCook(plan.extras, state.diners, catalogue.get)),
+          state.pantry,
+        );
         return {
           week: weekStart,
           aisles: toBuy.map(({ aisle, items }) => ({
@@ -284,13 +328,14 @@ export function createTools(api: CrumbleApi): Tool[] {
       name: "search_dishes",
       title: "Chercher des plats",
       description:
-        "Search the household's dishes (built-in and their own) by name or ingredient. By default only dishes in season for the planned week and allowed by the household's diet are returned.",
+        "Search the household's dishes (built-in and their own, starters and desserts included) by name or ingredient. By default only dishes in season for the planned week and allowed by the household's diet are returned.",
       inputSchema: object({
         query: {
           type: "string",
           description: "Words to look for in the dish name or its ingredients. Leave empty to list.",
         },
-        type: { type: "string", enum: ["lunch", "dinner"], description: "Only dishes that can be served then." },
+        type: { type: "string", enum: ["lunch", "dinner"], description: "Only main dishes that can be served then." },
+        course: { type: "string", enum: ["main", "starter", "dessert"] },
         household: {
           type: "string",
           enum: ["liked", "passed", "not decided"],
@@ -308,9 +353,13 @@ export function createTools(api: CrumbleApi): Tool[] {
         const words = normalize(String(input.query ?? ""))
           .split(" ")
           .filter(Boolean);
-        const matches = catalogue.swipeable
+        const matches = catalogue.all
+          .filter((m) => m.type !== "fixed")
+          .filter((m) => !input.course || COURSES[m.course ?? "plat"] === input.course)
           .filter((m) => input.include_unavailable === true || isAvailable(state, m))
-          .filter((m) => !input.type || (input.type === "lunch" ? m.type !== "dinner" : m.type !== "lunch"))
+          .filter(
+            (m) => !input.type || (!m.course && (input.type === "lunch" ? m.type !== "dinner" : m.type !== "lunch")),
+          )
           .filter((m) => {
             if (!words.length) return true;
             const text = normalize([m.name, ...m.ingredients.map(([n]) => n)].join(" "));
@@ -445,8 +494,8 @@ export function createTools(api: CrumbleApi): Tool[] {
     tool({
       name: "add_own_dish",
       title: "Ajouter un plat de la maison",
-      description: `Add one of the household's own recipes. It is liked straight away, so it can be planned. ${RECIPE_NOTES}`,
-      inputSchema: object(RECIPE_FIELDS, ["name", "type", "minutes", "ingredients", "steps"]),
+      description: `Add one of the household's own recipes. A main dish is liked straight away, so it can be planned; a starter or dessert is added to meals with set_extra. ${RECIPE_NOTES}`,
+      inputSchema: object(RECIPE_FIELDS, ["name", "minutes", "ingredients", "steps"]),
       run: (input) => {
         if (!String(input.name ?? "").trim()) throw new ToolError("The dish needs a name.");
         const id = `perso-${api.now().getTime().toString(36)}`;
@@ -542,26 +591,57 @@ export function createTools(api: CrumbleApi): Tool[] {
       name: "set_meal",
       title: "Changer un repas",
       description:
-        "Put a dish on a meal of the plan, or clear it with dish_id null. The dish is locked, so a new draw keeps it. A dish that makes two meals books its leftovers too.",
+        "Put a main dish on a meal of the plan, or clear it with dish_id null. The dish is locked, so a new draw keeps it. A dish that makes two meals books its leftovers too. A week without a plan gets an empty one, to fill by hand. Starters and desserts go with set_extra.",
       inputSchema: object(
         { day, meal, dish_id: { type: ["string", "null"], description: "A dish id, or null to plan nothing." }, week },
         ["day", "meal", "dish_id"],
       ),
       run: (input) => {
         const weekStart = weekOf(input, false);
-        requirePlan(weekStart);
         const slot = slotOf(input);
         const where = `${input.day} ${input.meal}`;
         if (input.dish_id === null) {
+          requirePlan(weekStart);
           api.dispatch({ type: "clearSlot", week: weekStart, slot });
           api.notify(`🤖 ${where} : rien de prévu`);
         } else {
           const dish = getDish(context().catalogue, input.dish_id);
+          if (dish.course)
+            throw new ToolError(`${dish.name} is a ${COURSES[dish.course]}: add it to a meal with set_extra.`);
           if (!fitsSlot(dish, slot))
             throw new ToolError(
               `${dish.name} is a ${TYPES[dish.type as keyof typeof TYPES]} dish; it can't go on ${where}.`,
             );
+          ensurePlan(weekStart);
           api.dispatch({ type: "placeMeal", week: weekStart, slot, mealId: dish.id });
+          api.notify(`🤖 ${where} : ${dish.name}`);
+        }
+        return describePlan(weekStart);
+      },
+    }),
+    tool({
+      name: "set_extra",
+      title: "Ajouter une entrée ou un dessert",
+      description:
+        "Add a starter or dessert to a meal of the plan, alongside its main dish, or take it off with remove. Its ingredients go on the shopping list, for the people at that meal. A week without a plan gets an empty one.",
+      inputSchema: object({ day, meal, dish_id: dishId, remove: { type: "boolean" }, week }, [
+        "day",
+        "meal",
+        "dish_id",
+      ]),
+      run: (input) => {
+        const weekStart = weekOf(input, false);
+        const slot = slotOf(input);
+        const dish = getDish(context().catalogue, input.dish_id);
+        if (!dish.course) throw new ToolError(`${dish.name} is a main dish: put it on a meal with set_meal.`);
+        const where = `${input.day} ${input.meal}`;
+        if (input.remove === true) {
+          requirePlan(weekStart);
+          api.dispatch({ type: "removeExtra", week: weekStart, slot, mealId: dish.id });
+          api.notify(`🤖 ${where} : sans ${dish.name}`);
+        } else {
+          ensurePlan(weekStart);
+          api.dispatch({ type: "addExtra", week: weekStart, slot, mealId: dish.id });
           api.notify(`🤖 ${where} : ${dish.name}`);
         }
         return describePlan(weekStart);
@@ -625,7 +705,12 @@ export function createTools(api: CrumbleApi): Tool[] {
       run: (input) => {
         const weekStart = weekOf(input, false);
         const plan = requirePlan(weekStart);
-        const list = shoppingList(plan.slots, context().catalogue.get).flatMap((g) => g.items);
+        const { state, catalogue } = context();
+        const list = shoppingList(
+          plan.slots,
+          catalogue.get,
+          extrasToCook(plan.extras, state.diners, catalogue.get),
+        ).flatMap((g) => g.items);
         const value = input.checked !== false;
         const done: string[] = [];
         const unknown: string[] = [];

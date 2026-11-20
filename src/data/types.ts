@@ -8,11 +8,19 @@ export type Ingredient = readonly [name: string, quantity: number, unit: string]
  */
 export type MealType = "dinner" | "lunch" | "either" | "fixed";
 
+/** Where a dish goes in a meal. Built-in dishes are all main dishes. */
+export type Course = "plat" | "entree" | "dessert";
+
 export interface Meal {
   id: string;
   emoji: string;
   name: string;
   type: MealType;
+  /**
+   * Starters and desserts go alongside a planned meal's main dish (see `Extra`): never swiped, never drawn. Missing
+   * means a main dish.
+   */
+  course?: Exclude<Course, "plat">;
   /** Display label, also parsed for planning: "1 h 15 (20 min actif)". */
   time: string;
   /** Cooked in a double batch: the planner books a leftovers meal right after. */

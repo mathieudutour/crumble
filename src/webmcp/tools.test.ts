@@ -141,6 +141,30 @@ describe("WebMCP tools", () => {
     expect((await call("get_recipe", { dish_id: dish.id })).steps).toEqual(["Coupe 4 courgettes.", "Enfourne 30 min."]);
   });
 
+  it("add a dessert to a meal, even without a plan, and shop for it", async () => {
+    const { call } = setup();
+    const dessert = await call("add_own_dish", {
+      name: "Mousse au chocolat",
+      course: "dessert",
+      minutes: 20,
+      ingredients: [{ name: "Chocolat noir", quantity: 200, unit: "g" }],
+      steps: ["Faire fondre le chocolat."],
+    });
+    expect(dessert).toMatchObject({ course: "dessert", household: "not decided" });
+    const found = await call("search_dishes", { course: "dessert" });
+    expect(found.dishes.map((d: { name: string }) => d.name)).toEqual(["Mousse au chocolat"]);
+    await expect(call("set_meal", { day: "mardi", meal: "soir", dish_id: dessert.id })).rejects.toThrow(/set_extra/);
+
+    const plan = await call("set_extra", { day: "mardi", meal: "soir", dish_id: dessert.id });
+    expect(plan.days[1].soir.extras).toEqual([{ dish_id: dessert.id, dish: "Mousse au chocolat", course: "dessert" }]);
+    const list = await call("get_shopping_list");
+    expect(list.aisles.flatMap((a: { items: { name: string }[] }) => a.items.map((i) => i.name))).toContain(
+      "Chocolat noir",
+    );
+    const after = await call("set_extra", { day: "mardi", meal: "soir", dish_id: dessert.id, remove: true });
+    expect(after.days[1].soir.extras).toBeUndefined();
+  });
+
   it("scale a recipe to its meal in the plan", async () => {
     const { call } = setup();
     await likeEnough(call);

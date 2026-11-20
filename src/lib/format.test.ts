@@ -6,7 +6,7 @@ import { seasonLabel } from "./season";
 import { shoppingList, splitPantry } from "./shopping";
 import { formatMinutes, parseMealTime, splitTimers } from "./time";
 import { defaultWeek, seasonMonthOf, weekName, weekRange } from "./week";
-import { defaultDiners, withPortions, type PlanSlot } from "./planning";
+import { defaultDiners, extrasToCook, withPortions, type PlanSlot } from "./planning";
 
 const catalogue = makeCatalogue();
 const meal = (id: string) => catalogue.get(id)!;
@@ -115,5 +115,33 @@ describe("shopping list", () => {
     const { toBuy, atHome } = splitPantry(list, { Oignons: true });
     expect(atHome.map((i) => i.name)).toEqual(["Oignons"]);
     expect(toBuy.flatMap((g) => g.items).some((i) => i.name === "Oignons")).toBe(false);
+  });
+
+  it("adds the starters and desserts of meals someone is home for", () => {
+    const own = makeCatalogue([
+      {
+        id: "perso-mousse",
+        emoji: "🍫",
+        name: "Mousse au chocolat",
+        type: "either",
+        course: "dessert",
+        time: "20 min",
+        ingredients: [["Chocolat noir", 100, "g"]],
+        months: [11],
+      },
+    ]);
+    const slots: PlanSlot[] = Array.from({ length: 14 }, () => ({ kind: "free" }));
+    const diners = defaultDiners().map((d, slot) => (slot === 3 ? { adults: 0, kids: 0 } : d));
+    const extras = extrasToCook(
+      [
+        { slot: 1, mealId: "perso-mousse" },
+        { slot: 3, mealId: "perso-mousse" },
+      ],
+      diners,
+      own.get,
+    );
+    expect(extras).toHaveLength(1);
+    const items = shoppingList(slots, own.get, extras).flatMap((g) => g.items);
+    expect(items.map((i) => i.name)).toEqual(["Chocolat noir"]);
   });
 });

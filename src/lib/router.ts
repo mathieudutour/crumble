@@ -4,7 +4,7 @@ export const VIEWS = [
   { id: "swipe", hash: "choisir", label: "Choisir" },
   { id: "plan", hash: "planning", label: "Planning" },
   { id: "shop", hash: "courses", label: "Courses" },
-  { id: "mine", hash: "plats", label: "Plats" },
+  { id: "recipes", hash: "recettes", label: "Recettes" },
   { id: "home", hash: "foyer", label: "Foyer" },
 ] as const;
 
@@ -12,7 +12,11 @@ export type ViewId = (typeof VIEWS)[number]["id"];
 
 export const hrefOf = (view: ViewId) => `#${VIEWS.find((v) => v.id === view)!.hash}`;
 
-const readView = (): ViewId => VIEWS.find((v) => `#${v.hash}` === location.hash)?.id ?? "swipe";
+/** Earlier names of tabs, so old links and bookmarks still land on them. */
+const RENAMED: Record<string, ViewId> = { "#plats": "recipes" };
+
+const readView = (): ViewId =>
+  VIEWS.find((v) => `#${v.hash}` === location.hash)?.id ?? RENAMED[location.hash] ?? "swipe";
 
 const subscribe = (onChange: () => void) => {
   addEventListener("hashchange", onChange);
